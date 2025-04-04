@@ -32,7 +32,7 @@ void Simulation::init()
 
     // initGround();
 
-    fluidCube.init(128, 0.0, 0.0);
+    fluidCube.init(256, 0.0, 0.0);
 }
 
 void Simulation::update(double seconds)

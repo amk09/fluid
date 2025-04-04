@@ -77,11 +77,21 @@ void GLWidget::initializeGL()
 void GLWidget::paintGL()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    glEnable(GL_BLEND); // Enable transparency blending
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
     m_shader->bind();
-    m_shader->setUniform("proj", m_camera.getProjection());
-    m_shader->setUniform("view", m_camera.getView());
+    // m_shader->setUniform("proj", m_camera.getProjection());
+    // m_shader->setUniform("view", m_camera.getView());
+    Eigen::Matrix4f view = m_camera.getView();
+    Eigen::Matrix4f proj = m_camera.getProjection();
+    Eigen::Matrix4f invViewProj = (proj * view).inverse();
+    m_shader->setUniform("invViewProj", invViewProj);
     m_sim.draw(m_shader);
     m_shader->unbind();
+
+    glDisable(GL_BLEND);
 }
 
 void GLWidget::resizeGL(int w, int h)
