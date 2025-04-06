@@ -22,6 +22,17 @@ void set_bnd(int N, int b, vector<float> &dataWrittenTo){
             dataWrittenTo[IX(N-1, i, j, N)]   = (b == 1 ? -dataWrittenTo[IX(N-2, i, j, N)]   : dataWrittenTo[IX(N-2, i, j, N)]);
         }
     }
+    /*
+    //optional: average neighboring inner cells
+    dataWrittenTo[IX(0,     0,     0,     N)] = (dataWrittenTo[IX(1, 0, 0, N)] + dataWrittenTo[IX(0, 1, 0, N)] + dataWrittenTo[IX(0, 0, 1, N)]) / 3.0f;
+    dataWrittenTo[IX(N - 1, 0,     0,     N)] = (dataWrittenTo[IX(N - 2, 0, 0, N)] + dataWrittenTo[IX(N - 1, 1, 0, N)] + dataWrittenTo[IX(N - 1, 0, 1, N)]) / 3.0f;
+    dataWrittenTo[IX(0,     N - 1, 0,     N)] = (dataWrittenTo[IX(1, N - 1, 0, N)] + dataWrittenTo[IX(0, N - 2, 0, N)] + dataWrittenTo[IX(0, N - 1, 1, N)]) / 3.0f;
+    dataWrittenTo[IX(0,     0,     N - 1, N)] = (dataWrittenTo[IX(1, 0, N - 1, N)] + dataWrittenTo[IX(0, 1, N - 1, N)] + dataWrittenTo[IX(0, 0, N - 2, N)]) / 3.0f;
+    dataWrittenTo[IX(N - 1, N - 1, 0,     N)] = (dataWrittenTo[IX(N - 2, N - 1, 0, N)] + dataWrittenTo[IX(N - 1, N - 2, 0, N)] + dataWrittenTo[IX(N - 1, N - 1, 1, N)]) / 3.0f;
+    dataWrittenTo[IX(N - 1, 0,     N - 1, N)] = (dataWrittenTo[IX(N - 2, 0, N - 1, N)] + dataWrittenTo[IX(N - 1, 1, N - 1, N)] + dataWrittenTo[IX(N - 1, 0, N - 2, N)]) / 3.0f;
+    dataWrittenTo[IX(0,     N - 1, N - 1, N)] = (dataWrittenTo[IX(1, N - 1, N - 1, N)] + dataWrittenTo[IX(0, N - 2, N - 1, N)] + dataWrittenTo[IX(0, N - 1, N - 2, N)]) / 3.0f;
+    dataWrittenTo[IX(N - 1, N - 1, N - 1, N)] = (dataWrittenTo[IX(N - 2, N - 1, N - 1, N)] + dataWrittenTo[IX(N - 1, N - 2, N - 1, N)] + dataWrittenTo[IX(N - 1, N - 1, N - 2, N)]) / 3.0f;
+    */
 }
 
 
