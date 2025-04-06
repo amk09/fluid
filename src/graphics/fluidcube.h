@@ -82,10 +82,6 @@ private:
     // iter and N will not be used here because we already have this in this class
     void project(vector<float> &velocityX, vector<float> &velocityY, vector<float> &velocityZ, vector<float> &p, vector<float> div);
 
-    // b is the same meaning shown above
-    // N will not be used here because we already have this in this class
-    void set_bnd(int b, vector<float> &dataWrittenTo);
-
     // Some getters here only to reduce the difficulty of extracting data
     int index(int x, int y, int z){
         return (x) + (y) * size + (z) * size * size;

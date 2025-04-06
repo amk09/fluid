@@ -15,4 +15,8 @@ void diffuse_density(int b, vector<float> &dataWrittenTo, vector<float> &dataRea
 void advect(int b, vector<float> &dataWrittenTo, vector<float> &dataReadFrom, vector<float> &velocityX, vector<float> &velocityY, vector<float> &velocityZ, float dt);
 
 
+// b is the same meaning shown above
+// N will not be used here because we already have this in this class
+void set_bnd(int b, vector<float> &dataWrittenTo);
+
 #endif // SOLVER_H

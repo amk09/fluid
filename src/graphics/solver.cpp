@@ -4,6 +4,27 @@ int IX(int x, int y, int z, int N) {
     return x + N * (y + N * z);
 }
 
+//For velocity fields, the component perpendicular to a wall is reflected.
+//For scalar fields, values at the boundary are copied from adjacent cells.
+void set_bnd(int N, int b, vector<float> &dataWrittenTo){
+    for (int i = 1; i < N - 1; i++) {
+        for (int j = 1; j < N - 1; j++) {
+            //for Z axis
+            dataWrittenTo[IX(i, j, 0, N)]     = (b == 3 ? -dataWrittenTo[IX(i, j, 1, N)]     : dataWrittenTo[IX(i, j, 1, N)]);
+            dataWrittenTo[IX(i, j, N-1, N)]   = (b == 3 ? -dataWrittenTo[IX(i, j, N-2, N)]   : dataWrittenTo[IX(i, j, N-2, N)]);
+
+            // For Y axis
+            dataWrittenTo[IX(i, 0, j, N)]     = (b == 2 ? -dataWrittenTo[IX(i, 1, j, N)]     : dataWrittenTo[IX(i, 1, j, N)]);
+            dataWrittenTo[IX(i, N-1, j, N)]   = (b == 2 ? -dataWrittenTo[IX(i, N-2, j, N)]   : dataWrittenTo[IX(i, N-2, j, N)]);
+
+            // For X axis
+            dataWrittenTo[IX(0, i, j, N)]     = (b == 1 ? -dataWrittenTo[IX(1, i, j, N)]     : dataWrittenTo[IX(1, i, j, N)]);
+            dataWrittenTo[IX(N-1, i, j, N)]   = (b == 1 ? -dataWrittenTo[IX(N-2, i, j, N)]   : dataWrittenTo[IX(N-2, i, j, N)]);
+        }
+    }
+}
+
+
 void diffuse_velocity(int b, vector<float> &dataWrittenTo, vector<float> &dataReadFrom, float diffuse, float dt){
     int size = dataWrittenTo.size();
     int N = std::cbrt(size);
@@ -21,8 +42,9 @@ void diffuse_velocity(int b, vector<float> &dataWrittenTo, vector<float> &dataRe
                 }
             }
         }
+        
     }
-
+    set_bnd(N, b, dataWrittenTo);
 
 }
 
@@ -44,6 +66,7 @@ void diffuse_density(int b, vector<float> &dataWrittenTo, vector<float> &dataRea
             }
         }
     }
+    set_bnd(N, b, dataWrittenTo);
 }
 
 void advect(int b, vector<float> &dataWrittenTo, vector<float> &dataReadFrom, vector<float> &velocityX, vector<float> &velocityY, vector<float> &velocityZ, float dt){
@@ -86,6 +109,6 @@ void advect(int b, vector<float> &dataWrittenTo, vector<float> &dataReadFrom, ve
             }
         }
     }
-
+    set_bnd(N, b, dataWrittenTo);
 }
 
