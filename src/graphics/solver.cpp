@@ -43,5 +43,49 @@ void diffuse_density(int b, vector<float> &dataWrittenTo, vector<float> &dataRea
                 }
             }
         }
-    };
+    }
 }
+
+void advect(int b, vector<float> &dataWrittenTo, vector<float> &dataReadFrom, vector<float> &velocityX, vector<float> &velocityY, vector<float> &velocityZ, float dt){
+    int size = dataWrittenTo.size();
+    int N = std::round(std::cbrt(size));
+    float dt0 = dt * N;
+    for(int i = 1; i<N-1; i++){
+        for(int j = 1; j < N-1; j++){
+            for(int k = 1; k < N-1; k++){
+                int idx = IX(i, j, k, N);
+
+                //Backtrace particle position
+                float x = i- dt0* velocityX[idx];
+                float y = i- dt0* velocityY[idx];
+                float z = i- dt0* velocityZ[idx];
+
+                x = std::clamp(x, 0.5f, N - 1.5f);
+                y = std::clamp(y, 0.5f, N - 1.5f);
+                z = std::clamp(z, 0.5f, N - 1.5f);
+
+                int i0 = (int)x;
+                int j0 = (int)y;
+                int k0 = (int)z;
+
+                int i1 = i0 + 1;
+                int j1 = j0 + 1;
+                int k1 = k0 + 1;
+
+                float s1 = x - i0, s0 = 1 - s1;
+                float t1 = y - j0, t0 = 1 - t1;
+                float u1 = z - k0, u0 = 1 - u1;
+
+                dataWrittenTo[idx] =
+                    s0 * (t0 * (u0 * dataReadFrom[IX(i0, j0, k0, N)] + u1 * dataReadFrom[IX(i0, j0, k1, N)]) +
+                          t1 * (u0 * dataReadFrom[IX(i0, j1, k0, N)] + u1 * dataReadFrom[IX(i0, j1, k1, N)])) +
+                    s1 * (t0 * (u0 * dataReadFrom[IX(i1, j0, k0, N)] + u1 * dataReadFrom[IX(i1, j0, k1, N)]) +
+                          t1 * (u0 * dataReadFrom[IX(i1, j1, k0, N)] + u1 * dataReadFrom[IX(i1, j1, k1, N)]));
+
+
+            }
+        }
+    }
+
+}
+

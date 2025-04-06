@@ -10,5 +10,9 @@ void diffuse_velocity(int b, vector<float> &dataWrittenTo, vector<float> &dataRe
 void diffuse_density(int b, vector<float> &dataWrittenTo, vector<float> &dataReadFrom, float diffuse, float dt);
 
 
+// b is the same meaning shown above
+// N will not be used here because we already have this in this class
+void advect(int b, vector<float> &dataWrittenTo, vector<float> &dataReadFrom, vector<float> &velocityX, vector<float> &velocityY, vector<float> &velocityZ, float dt);
+
 
 #endif // SOLVER_H
