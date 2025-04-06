@@ -74,11 +74,7 @@ private:
     // Below are the main functions should be done in Stable Fluids
     int iter = 4; // This is the key parameter to solve stable formula (20 in the paper; 10 in the video; 4 in the website)
 
-    // b here is coord number, where 1 for x-coord, 2 for y-coord, 3 for z-coord (0 for nothing)
-    // diffuse will be (visc for velocity diffuse, diff for density diffuse)
-    // iter and N will not be used here because we already have this in this class
-    void diffuse(int b, vector<float> &dataWrittenTo, vector<float> &dataReadFrom, float diffuse, float dt);
-
+   
     // a & c are the parameters required in the paper.
     // iter and N will not be used here because we already have this in this class
     void lin_solve(int b, vector<float> &dataWrittenTo, vector<float> &dataReadFrom, float a, float c);
