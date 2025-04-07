@@ -1,5 +1,6 @@
 #include "fluidcube.h"
 #include "graphics/shader.h"
+#include "graphics/solver.h"
 #include <iomanip>
 #include <iostream>
 
@@ -19,6 +20,42 @@ FluidCube::FluidCube()
     diff(0.0f),
     visc(0.0f)
 {
+}
+
+void FluidCube::update(float dt)
+{
+    // 1. Diffuse velocity
+    diffuse_velocity(1, vX0, vX, visc, dt, iter, size);
+    diffuse_velocity(2, vY0, vY, visc, dt, iter, size);
+    diffuse_velocity(3, vZ0, vZ, visc, dt, iter, size);
+
+    // 2. Project velocity
+    project(vX0, vY0, vZ0, vX, vY, iter, size);
+
+    // 3. Advect velocity
+    advect(1, vX, vX0, vX0, vY0, vZ0, dt, size);
+    advect(2, vY, vY0, vX0, vY0, vZ0, dt, size);
+    advect(3, vZ, vZ0, vX0, vY0, vZ0, dt, size);
+
+    // 4. Project again
+    project(vX, vY, vZ, vX0, vY0, iter, size);
+
+    // 5. Diffuse density
+    diffuse_density(0, density0, density, diff, dt, iter, size);
+
+    // 6. Advect density
+    advect(0, density, density0, vX, vY, vZ, dt, size);
+
+    uploadDensityToGPU();
+}
+
+void FluidCube::draw(Shader *shader)
+{
+    // // For Voxel
+    // drawVoxel(shader);
+
+    // For Ray Marchign
+    drawVolume(shader);
 }
 
 void FluidCube::init(int size, float diffuse, float viscosity){
@@ -50,20 +87,6 @@ void FluidCube::init(int size, float diffuse, float viscosity){
     // Inject Density and then upload it to GPU openGL
     test();
     uploadDensityToGPU();
-}
-
-void FluidCube::update(float dt)
-{
-    uploadDensityToGPU();
-}
-
-void FluidCube::draw(Shader *shader)
-{
-    // // For Voxel
-    // drawVoxel(shader);
-
-    // For Ray Marchign
-    drawVolume(shader);
 }
 
 void FluidCube::addDensity(int x, int y, int z, float amount){
@@ -122,6 +145,8 @@ void FluidCube::uploadDensityToGPU() {
     glBindTexture(GL_TEXTURE_3D, m_densityTexture);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    // glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    // glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
@@ -241,7 +266,7 @@ void FluidCube::test() {
     int center = size / 2;
 
     // A Sphere
-    int radius = size / 2;
+    int radius = size / 4;
     int radius2 = radius * radius;
 
     for (int z = 0; z < size; ++z)
@@ -253,7 +278,7 @@ void FluidCube::test() {
                 int dist2 = dx * dx + dy * dy + dz * dz;
 
                 if (dist2 < radius2)
-                    addDensity(x, y, z, 0.5f);
+                    addDensity(x, y, z, 1.0f);
             }
 
     // // A Cube
@@ -262,15 +287,4 @@ void FluidCube::test() {
     //         for (int x = 0; x < size; ++x)
     //             addDensity(x, y, z, 0.5f);
 
-    // std::cout << "=== Density slice at z = " << center << " ===\n";
-    for (int y = 0; y < size; ++y) {
-        for (int x = 0; x < size; ++x) {
-            float d = density[index(x, y, center)];
-            // if (d > 0.01f)
-            //     std::cout << std::fixed << std::setprecision(2) << d << " ";
-            // else
-            //     std::cout << " .   ";
-        }
-        // std::cout << '\n';
-    }
 }
