@@ -37,6 +37,7 @@ add_executable(${PROJECT_NAME}
     src/graphics/meshloader.cpp
     src/graphics/shader.cpp
     src/graphics/shape.cpp
+    src/graphics/solver.cpp
 
     src/mainwindow.h
     src/simulation.h
@@ -46,6 +47,7 @@ add_executable(${PROJECT_NAME}
     src/graphics/meshloader.h
     src/graphics/shader.h
     src/graphics/shape.h
+    src/graphics/solver.h
 
     util/tiny_obj_loader.h
     util/unsupportedeigenthing/OpenGLSupport

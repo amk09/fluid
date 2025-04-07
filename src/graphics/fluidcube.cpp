@@ -262,15 +262,15 @@ void FluidCube::test() {
     //         for (int x = 0; x < size; ++x)
     //             addDensity(x, y, z, 0.5f);
 
-    std::cout << "=== Density slice at z = " << center << " ===\n";
+    // std::cout << "=== Density slice at z = " << center << " ===\n";
     for (int y = 0; y < size; ++y) {
         for (int x = 0; x < size; ++x) {
             float d = density[index(x, y, center)];
-            if (d > 0.01f)
-                std::cout << std::fixed << std::setprecision(2) << d << " ";
-            else
-                std::cout << " .   ";
+            // if (d > 0.01f)
+            //     std::cout << std::fixed << std::setprecision(2) << d << " ";
+            // else
+            //     std::cout << " .   ";
         }
-        std::cout << '\n';
+        // std::cout << '\n';
     }
 }
