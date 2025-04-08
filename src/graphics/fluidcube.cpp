@@ -33,69 +33,46 @@ FluidCube::FluidCube()
 
 void FluidCube::update(float dt)
 {   
-    static float initialDensity = -1.0f;
+
     if (initialDensity < 0.0f) {
         initialDensity = getTotalDensity();
     }
 
-    std::swap(density0, density);
-    diffuse_density(0, density, density0, diff, dt, iter, size);
-
-    std::swap(density0, density);
-    advect(0, density, density0, vX, vY, vZ, dt, size);
-
-    conserveDensity(density, initialDensity, size);
-
-    std::swap(vX0, vX);
-    std::swap(vY0, vY);
-    std::swap(vZ0, vZ);
-    diffuse_velocity(1, vX, vX0, visc, dt, iter, size);
-    diffuse_velocity(2, vY, vY0, visc, dt, iter, size);
-    diffuse_velocity(3, vZ, vZ0, visc, dt, iter, size);
-  
-    project(vX, vY, vZ, vX0, vY0, iter, size);
+    addFountainForce(vX, vY, vZ, density, size, 5.f, dt);
+    circulateDensity(density, size, dt, 0.1f);
     
-    // Advect velocity
-    std::swap(vX0, vX);
-    std::swap(vY0, vY);
-    std::swap(vZ0, vZ);
+    // // Debug output
+    // static int frameCount = 0;
+    // frameCount++;
+    // if (frameCount % 30 == 0) {
+    //     std::cout << "Current density: " << getTotalDensity() 
+    //               << " Initial: " << initialDensity << std::endl;
+    // }
+
+//                        WHAT WE HAD
+    // 1. Diffuse velocity
+    diffuse_velocity(1, vX0, vX, visc, dt, iter, size);
+    diffuse_velocity(2, vY0, vY, visc, dt, iter, size);
+    diffuse_velocity(3, vZ0, vZ, visc, dt, iter, size);
+
+    // 2. Project velocity
+    project(vX0, vY0, vZ0, vX, vY, iter, size);
+
+    // 3. Advect velocity
     advect(1, vX, vX0, vX0, vY0, vZ0, dt, size);
     advect(2, vY, vY0, vX0, vY0, vZ0, dt, size);
     advect(3, vZ, vZ0, vX0, vY0, vZ0, dt, size);
-    
-    // Project again
+
+    // 4. Project again
     project(vX, vY, vZ, vX0, vY0, iter, size);
-    
-    // Debug output
-    static int frameCount = 0;
-    frameCount++;
-    if (frameCount % 30 == 0) {
-        std::cout << "Current density: " << getTotalDensity() 
-                  << " Initial: " << initialDensity << std::endl;
-    }
 
-//                        WHAT WE HAD
-    // // 1. Diffuse velocity
-    // diffuse_velocity(1, vX0, vX, visc, dt, iter, size);
-    // diffuse_velocity(2, vY0, vY, visc, dt, iter, size);
-    // diffuse_velocity(3, vZ0, vZ, visc, dt, iter, size);
+    // 5. Diffuse density
+    diffuse_density(0, density0, density, diff, dt, iter, size);
 
-    // // 2. Project velocity
-    // project(vX0, vY0, vZ0, vX, vY, iter, size);
+    // 6. Advect density
+    advect(0, density, density0, vX, vY, vZ, dt, size);
 
-    // // 3. Advect velocity
-    // advect(1, vX, vX0, vX0, vY0, vZ0, dt, size);
-    // advect(2, vY, vY0, vX0, vY0, vZ0, dt, size);
-    // advect(3, vZ, vZ0, vX0, vY0, vZ0, dt, size);
-
-    // // 4. Project again
-    // project(vX, vY, vZ, vX0, vY0, iter, size);
-
-    // // 5. Diffuse density
-    // diffuse_density(0, density0, density, diff, dt, iter, size);
-
-    // // 6. Advect density
-    // advect(0, density, density0, vX, vY, vZ, dt, size);
+    conserveDensity(density, initialDensity, size);
 
     uploadDensityToGPU();
 }
@@ -242,7 +219,8 @@ void FluidCube::uploadDensityToGPU() {
 void FluidCube::drawVolume(Shader* shader){
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_3D, m_densityTexture);
-    shader->setUniform("densityTex", 0);
+    shader->setUniform("fluidStyle", 1);
+    // shader->setUniform("densityTex", 0);
     shader->setUniform("size" , size);
 
     glBindVertexArray(m_fullscreen_vao);
@@ -337,33 +315,64 @@ void FluidCube::toggleWireframe()
 
 // Below is for the test methods
 void FluidCube::test() {
+    // int center = size / 2;
+
+    // // A Sphere
+    // int radius = size / 8;
+    // int radius2 = radius * radius;
+
+    // for (int z = 0; z < size; ++z){
+    //     for (int y = 0; y < size; ++y){
+    //         for (int x = 0; x < size; ++x) {
+    //             int dx = x - center;
+    //             int dy = y - center;
+    //             int dz = z - center;
+    //             int dist2 = dx * dx + dy * dy + dz * dz;
+
+    //             if (dist2 < radius2)
+    //                 addDensity(x, y, z, 1.0f);
+    //         }
+    //     }
+    // }
+
+    // // VectorFields::addVortexField(vX, vY, vZ, density, size, 2.0f);
+
+    // // // A Cube
+    // // for (int z = 0; z < size; ++z)
+    // //     for (int y = 0; y < size; ++y)
+    // //         for (int x = 0; x < size; ++x)
+    // //             addDensity(x, y, z, 0.5f);
+
     int center = size / 2;
-
-    // A Sphere
-    int radius = size / 64;
-    int radius2 = radius * radius;
-
-    for (int z = 0; z < size; ++z){
-        for (int y = 0; y < size; ++y){
+    
+    // Create a pool of water at the bottom third of the container
+    int waterHeight = size / 3;
+    
+    for (int z = 0; z < size; ++z) {
+        for (int y = 0; y < waterHeight; ++y) {
             for (int x = 0; x < size; ++x) {
-                int dx = x - center;
-                int dy = y - center;
-                int dz = z - center;
-                int dist2 = dx * dx + dy * dy + dz * dz;
-
-                if (dist2 < radius2)
-                    addDensity(x, y, z, 1.0f);
+                // Add density that decreases with height for natural water look
+                float heightFactor = 1.0f - (float)y / waterHeight;
+                addDensity(x, y, z, 0.8f * heightFactor);
             }
         }
     }
 
-    VectorFields::addVortexField(vX, vY, vZ, density, size, 2.0f);
-
-    // // A Cube
-    // for (int z = 0; z < size; ++z)
-    //     for (int y = 0; y < size; ++y)
-    //         for (int x = 0; x < size; ++x)
-    //             addDensity(x, y, z, 0.5f);
+    if (1) {
+        int fountainRadius = size / 10;
+        for (int z = center - fountainRadius; z <= center + fountainRadius; z++) {
+            for (int x = center - fountainRadius; x <= center + fountainRadius; x++) {
+                float dx = x - center;
+                float dz = z - center;
+                
+                if ((dx*dx + dz*dz) <= fountainRadius*fountainRadius) {
+                    for (int y = 0; y < 3; y++) {
+                        addVelocity(x, y, z, 0.0f, 5.0f, 0.0f);
+                    }
+                }
+            }
+        }
+    }
 
 }
 

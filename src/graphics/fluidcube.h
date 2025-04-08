@@ -42,6 +42,8 @@ public:
     void visualizeVelocity();
     float getTotalDensity();
 private:
+
+    float initialDensity = -1.0f;
     // Below are the units for OpenGL rendering
     GLuint m_vao;
     GLuint m_vbo;

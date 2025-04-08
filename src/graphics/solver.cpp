@@ -39,6 +39,7 @@ void lin_solve(int b, vector<float> &dataWrittenTo, vector<float> &dataReadFrom,
 }
 
 void advect(int b, vector<float> &dataWrittenTo, vector<float> &dataReadFrom, vector<float> &velocityX, vector<float> &velocityY, vector<float> &velocityZ, float dt, int N){
+    
     float dt0 = dt * (N - 2);
     for (int k = 1; k < N - 1; k++) {
         for (int j = 1; j < N - 1; j++) {
@@ -166,13 +167,11 @@ void conserveDensity(std::vector<float> &density, float targetDensity, int N) {
             }
         }
     }
-    
-    // Avoid division by zero
+
     if (currentDensity < 0.000001f) {
         return;
     }
     
-    // Calculate and apply scaling factor
     float factor = targetDensity / currentDensity;
     
     for (int k = 0; k < N; k++) {
@@ -184,3 +183,125 @@ void conserveDensity(std::vector<float> &density, float targetDensity, int N) {
     }
 }
 
+
+
+
+
+void addFountainForce(std::vector<float> &velocityX, std::vector<float> &velocityY, 
+    std::vector<float> &velocityZ, std::vector<float> &density, 
+    int N, float strength, float dt) {
+    int center = N / 2;
+    int fountainRadius = N / 10;  // Width of the fountain
+    float fountainStrength = strength * dt;
+
+    // Apply upward force in a focused area at bottom
+    for (int k = center - fountainRadius; k <= center + fountainRadius; k++) {
+        for (int i = center - fountainRadius; i <= center + fountainRadius; i++) {
+            // Calculate distance from center
+            float dx = i - center;
+            float dz = k - center;
+            float dist2 = dx*dx + dz*dz;
+
+            if (dist2 > fountainRadius*fountainRadius)
+            continue;
+
+            // Apply force stronger at center, weaker at edges
+            float radiusFactor = 1.0f - sqrt(dist2) / fountainRadius;
+            float force = fountainStrength * radiusFactor * radiusFactor;
+
+            // Apply to bottom cells
+            for (int j = 0; j < 3; j++) {
+            int idx = IX(i, j, k, N);
+
+            // Add upward velocity
+            velocityY[idx] += force;
+
+            // Add slight X/Z variation 
+            velocityX[idx] += (((float)rand()/RAND_MAX) * 0.2f - 0.1f) * force * 0.2f;
+            velocityZ[idx] += (((float)rand()/RAND_MAX) * 0.2f - 0.1f) * force * 0.2f;
+            }
+        }
+    }
+
+    
+    set_bnd(1, velocityX, N);
+    set_bnd(2, velocityY, N);
+    set_bnd(3, velocityZ, N);
+}
+
+
+
+void circulateDensity(std::vector<float> &density, int N, float dt, float rate) {
+    int center = N / 2;
+    int sourceRadius = N / 10;
+    int sinkRadius = N / 6;
+    float transferRate = rate * dt;
+    
+    std::vector<float> densityChange(density.size(), 0.0f);
+    float totalRemoved = 0.0f;
+    
+    // First pass: remove density from top of fluid
+    for (int k = center - sinkRadius; k <= center + sinkRadius; k++) {
+        for (int i = center - sinkRadius; i <= center + sinkRadius; i++) {
+            float dx = i - center;
+            float dz = k - center;
+            float dist2 = dx*dx + dz*dz;
+            
+            if (dist2 > sinkRadius*sinkRadius)
+                continue;
+                
+            
+            for (int j = N-5; j < N-1; j++) {
+                int idx = IX(i, j, k, N);
+                float amountToRemove = density[idx] * transferRate;
+                densityChange[idx] -= amountToRemove;
+                totalRemoved += amountToRemove;
+            }
+        }
+    }
+    
+    // Second pass: add density to the fountain source
+    int fountainPoints = 0;
+    for (int k = center - sourceRadius; k <= center + sourceRadius; k++) {
+        for (int i = center - sourceRadius; i <= center + sourceRadius; i++) {
+            float dx = i - center;
+            float dz = k - center;
+            float dist2 = dx*dx + dz*dz;
+            
+            if (dist2 > sourceRadius*sourceRadius)
+                continue;
+                
+            // Count points for bottom source
+            for (int j = 0; j < 3; j++) {
+                fountainPoints++;
+            }
+        }
+    }
+    
+    
+    float addPerCell = fountainPoints > 0 ? totalRemoved / fountainPoints : 0;
+    
+    for (int k = center - sourceRadius; k <= center + sourceRadius; k++) {
+        for (int i = center - sourceRadius; i <= center + sourceRadius; i++) {
+            float dx = i - center;
+            float dz = k - center;
+            float dist2 = dx*dx + dz*dz;
+            
+            if (dist2 > sourceRadius*sourceRadius)
+                continue;
+                
+            
+            for (int j = 0; j < 3; j++) {
+                int idx = IX(i, j, k, N);
+                densityChange[idx] += addPerCell;
+            }
+        }
+    }
+    
+   
+    for (int i = 0; i < density.size(); i++) {
+        density[i] += densityChange[i];
+        // Clamp density to [0, 1]
+        density[i] = std::max(0.0f, std::min(density[i], 1.0f));
+    }
+}
