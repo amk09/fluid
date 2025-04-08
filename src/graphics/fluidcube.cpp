@@ -1,8 +1,17 @@
 #include "fluidcube.h"
 #include "graphics/shader.h"
 #include "graphics/solver.h"
+#include "graphics/vectorfield.h" 
 #include <iomanip>
 #include <iostream>
+
+float FluidCube::getTotalDensity() {
+    float total = 0.0f;
+    for (int i = 0; i < density.size(); i++) {
+        total += density[i];
+    }
+    return total;
+}
 
 FluidCube::FluidCube()
     : m_vao(0),
@@ -23,28 +32,70 @@ FluidCube::FluidCube()
 }
 
 void FluidCube::update(float dt)
-{
-    // 1. Diffuse velocity
-    diffuse_velocity(1, vX0, vX, visc, dt, iter, size);
-    diffuse_velocity(2, vY0, vY, visc, dt, iter, size);
-    diffuse_velocity(3, vZ0, vZ, visc, dt, iter, size);
+{   
+    static float initialDensity = -1.0f;
+    if (initialDensity < 0.0f) {
+        initialDensity = getTotalDensity();
+    }
 
-    // 2. Project velocity
-    project(vX0, vY0, vZ0, vX, vY, iter, size);
+    std::swap(density0, density);
+    diffuse_density(0, density, density0, diff, dt, iter, size);
 
-    // 3. Advect velocity
+    std::swap(density0, density);
+    advect(0, density, density0, vX, vY, vZ, dt, size);
+
+    conserveDensity(density, initialDensity, size);
+
+    std::swap(vX0, vX);
+    std::swap(vY0, vY);
+    std::swap(vZ0, vZ);
+    diffuse_velocity(1, vX, vX0, visc, dt, iter, size);
+    diffuse_velocity(2, vY, vY0, visc, dt, iter, size);
+    diffuse_velocity(3, vZ, vZ0, visc, dt, iter, size);
+  
+    project(vX, vY, vZ, vX0, vY0, iter, size);
+    
+    // Advect velocity
+    std::swap(vX0, vX);
+    std::swap(vY0, vY);
+    std::swap(vZ0, vZ);
     advect(1, vX, vX0, vX0, vY0, vZ0, dt, size);
     advect(2, vY, vY0, vX0, vY0, vZ0, dt, size);
     advect(3, vZ, vZ0, vX0, vY0, vZ0, dt, size);
-
-    // 4. Project again
+    
+    // Project again
     project(vX, vY, vZ, vX0, vY0, iter, size);
+    
+    // Debug output
+    static int frameCount = 0;
+    frameCount++;
+    if (frameCount % 30 == 0) {
+        std::cout << "Current density: " << getTotalDensity() 
+                  << " Initial: " << initialDensity << std::endl;
+    }
 
-    // 5. Diffuse density
-    diffuse_density(0, density0, density, diff, dt, iter, size);
+//                        WHAT WE HAD
+    // // 1. Diffuse velocity
+    // diffuse_velocity(1, vX0, vX, visc, dt, iter, size);
+    // diffuse_velocity(2, vY0, vY, visc, dt, iter, size);
+    // diffuse_velocity(3, vZ0, vZ, visc, dt, iter, size);
 
-    // 6. Advect density
-    advect(0, density, density0, vX, vY, vZ, dt, size);
+    // // 2. Project velocity
+    // project(vX0, vY0, vZ0, vX, vY, iter, size);
+
+    // // 3. Advect velocity
+    // advect(1, vX, vX0, vX0, vY0, vZ0, dt, size);
+    // advect(2, vY, vY0, vX0, vY0, vZ0, dt, size);
+    // advect(3, vZ, vZ0, vX0, vY0, vZ0, dt, size);
+
+    // // 4. Project again
+    // project(vX, vY, vZ, vX0, vY0, iter, size);
+
+    // // 5. Diffuse density
+    // diffuse_density(0, density0, density, diff, dt, iter, size);
+
+    // // 6. Advect density
+    // advect(0, density, density0, vX, vY, vZ, dt, size);
 
     uploadDensityToGPU();
 }
@@ -141,6 +192,29 @@ void FluidCube::initFullscreenQuad() {
 void FluidCube::uploadDensityToGPU() {
     if (m_densityTexture == 0)
         glGenTextures(1, &m_densityTexture);
+
+
+    std::vector<float> enhancedDensity(density.size());
+
+    float minDensity = 1.0f;
+    float maxDensity = 0.0f;
+    for (int i = 0; i < density.size(); i++) {
+        minDensity = std::min(minDensity, density[i]);
+        maxDensity = std::max(maxDensity, density[i]);
+    }
+    
+    // Apply contrast enhancement
+    float range = maxDensity - minDensity;
+    if (range > 0.01f) {  // Only if there's actual variation
+        for (int i = 0; i < density.size(); i++) {
+            // Normalize to [0,1] range
+            float normalized = (density[i] - minDensity) / range;
+            // Apply power curve for more contrast
+            enhancedDensity[i] = std::pow(normalized, 1.5f);
+        }
+    } else {
+        enhancedDensity = density;  // No enhancement if uniform
+    }
 
     glBindTexture(GL_TEXTURE_3D, m_densityTexture);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -266,11 +340,11 @@ void FluidCube::test() {
     int center = size / 2;
 
     // A Sphere
-    int radius = size / 4;
+    int radius = size / 64;
     int radius2 = radius * radius;
 
-    for (int z = 0; z < size; ++z)
-        for (int y = 0; y < size; ++y)
+    for (int z = 0; z < size; ++z){
+        for (int y = 0; y < size; ++y){
             for (int x = 0; x < size; ++x) {
                 int dx = x - center;
                 int dy = y - center;
@@ -280,6 +354,10 @@ void FluidCube::test() {
                 if (dist2 < radius2)
                     addDensity(x, y, z, 1.0f);
             }
+        }
+    }
+
+    VectorFields::addVortexField(vX, vY, vZ, density, size, 2.0f);
 
     // // A Cube
     // for (int z = 0; z < size; ++z)
@@ -287,4 +365,29 @@ void FluidCube::test() {
     //         for (int x = 0; x < size; ++x)
     //             addDensity(x, y, z, 0.5f);
 
+}
+
+
+
+
+
+void FluidCube::visualizeVelocity() {
+    float maxVelocity = 0.0f;
+    
+    // Find maximum velocity magnitude
+    for (int i = 0; i < vX.size(); i++) {
+        float magnitude = std::sqrt(vX[i]*vX[i] + vY[i]*vY[i] + vZ[i]*vZ[i]);
+        maxVelocity = std::max(maxVelocity, magnitude);
+    }
+    
+    std::cout << "Maximum velocity: " << maxVelocity << std::endl;
+    
+    // Convert velocity to density for visualization
+    if (maxVelocity > 0.001f) {
+        for (int i = 0; i < density.size(); i++) {
+            float magnitude = std::sqrt(vX[i]*vX[i] + vY[i]*vY[i] + vZ[i]*vZ[i]);
+            // Add a portion of velocity magnitude to density
+            density[i] = std::min(1.0f, density[i] + magnitude / maxVelocity * 0.2f);
+        }
+    }
 }

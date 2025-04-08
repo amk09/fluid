@@ -1,4 +1,5 @@
 #include "solver.h"
+#include <omp.h>
 
 int IX(int x, int y, int z, int N) {
     return x + N * (y + N * z);
@@ -18,6 +19,7 @@ void lin_solve(int b, vector<float> &dataWrittenTo, vector<float> &dataReadFrom,
     float cRecip = 1.0f / c;
 
     for (int k = 0; k < iter; ++k){
+        #pragma omp parallel for collapse(3)
         for (int z = 1; z < N - 1; ++z){
             for (int y = 1; y < N - 1; ++y){
                 for (int x = 1; x < N - 1; ++x){
@@ -148,5 +150,37 @@ void set_bnd(int b, vector<float> &dataWrittenTo, int N){
     dataWrittenTo[IX(0,     N - 1, N - 1, N)] = (dataWrittenTo[IX(1, N - 1, N - 1, N)] + dataWrittenTo[IX(0, N - 2, N - 1, N)] + dataWrittenTo[IX(0, N - 1, N - 2, N)]) / 3.0f;
     dataWrittenTo[IX(N - 1, N - 1, N - 1, N)] = (dataWrittenTo[IX(N - 2, N - 1, N - 1, N)] + dataWrittenTo[IX(N - 1, N - 2, N - 1, N)] + dataWrittenTo[IX(N - 1, N - 1, N - 2, N)]) / 3.0f;
 
+}
+
+
+
+
+void conserveDensity(std::vector<float> &density, float targetDensity, int N) {
+    float currentDensity = 0.0f;
+    
+    // Calculate current total density
+    for (int k = 0; k < N; k++) {
+        for (int j = 0; j < N; j++) {
+            for (int i = 0; i < N; i++) {
+                currentDensity += density[IX(i, j, k, N)];
+            }
+        }
+    }
+    
+    // Avoid division by zero
+    if (currentDensity < 0.000001f) {
+        return;
+    }
+    
+    // Calculate and apply scaling factor
+    float factor = targetDensity / currentDensity;
+    
+    for (int k = 0; k < N; k++) {
+        for (int j = 0; j < N; j++) {
+            for (int i = 0; i < N; i++) {
+                density[IX(i, j, k, N)] *= factor;
+            }
+        }
+    }
 }
 

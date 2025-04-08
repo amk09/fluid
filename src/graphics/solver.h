@@ -25,4 +25,8 @@ void advect(int b, vector<float> &dataWrittenTo, vector<float> &dataReadFrom, ve
 // N will not be used here because we already have this in this class
 void set_bnd(int b, vector<float> &dataWrittenTo, int N);
 
+
+//handle the density conservation
+void conserveDensity(std::vector<float> &density, float targetDensity, int N);
+
 #endif // SOLVER_H

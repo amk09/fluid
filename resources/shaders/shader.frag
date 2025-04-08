@@ -65,7 +65,7 @@ void main() {
 
     // What we want for steps: (tMax - tMin) / stepSize ≈ maxSteps //TODO:: Need a better strategy here
     float rayLength = tExit - tEnter;
-    float stepSize = 0.5 / float(size); // 半个 voxel
+    float stepSize = 0.5 / float(size); // half voxel
     int maxSteps = int(rayLength / stepSize) + 1;
 
     // Read the enter time and enter position

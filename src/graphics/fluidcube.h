@@ -37,6 +37,10 @@ public:
     void addDensity(int x, int y, int z, float amount);
     void addVelocity(int x, int y, int z, float amountX, float amountY, float amountZ);
 
+    
+    //debugger
+    void visualizeVelocity();
+    float getTotalDensity();
 private:
     // Below are the units for OpenGL rendering
     GLuint m_vao;
