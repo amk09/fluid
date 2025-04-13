@@ -38,6 +38,7 @@ add_executable(${PROJECT_NAME}
     src/graphics/shader.cpp
     src/graphics/shape.cpp
     src/graphics/solver.cpp
+    src/graphics/vectorfield.cpp
 
     src/mainwindow.h
     src/simulation.h
@@ -48,6 +49,7 @@ add_executable(${PROJECT_NAME}
     src/graphics/shader.h
     src/graphics/shape.h
     src/graphics/solver.h
+    src/graphics/vectorfield.h
 
     util/tiny_obj_loader.h
     util/unsupportedeigenthing/OpenGLSupport
@@ -102,4 +104,16 @@ endif()
 # Set this flag to silence warnings on MacOS
 if (APPLE)
   set(CMAKE_CXX_FLAGS "-Wno-deprecated-volatile")
+endif()
+
+# link homebrew's libomp
+if(APPLE)
+    target_compile_options(${PROJECT_NAME} PRIVATE -Xclang -fopenmp -isystem/opt/homebrew/opt/libomp/include)
+    target_link_options(${PROJECT_NAME} PRIVATE -L/opt/homebrew/opt/libomp/lib -lomp)
+endif()
+
+# current include openmp logic
+find_package(OpenMP)
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(${PROJECT_NAME} PUBLIC OpenMP::OpenMP_CXX)
 endif()

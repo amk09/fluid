@@ -188,6 +188,7 @@ void GLWidget::keyReleaseEvent(QKeyEvent *event)
     case Qt::Key_D: m_sideways -= SPEED; break;
     case Qt::Key_F: m_vertical += SPEED; break;
     case Qt::Key_R: m_vertical -= SPEED; break;
+    case Qt::Key_P: m_pause = !m_pause; break;
     }
 }
 
@@ -202,7 +203,7 @@ void GLWidget::tick()
     float deltaSeconds = m_deltaTimeProvider.restart() / 1000.f;
     accumulatedTime += deltaSeconds;
 
-    while (accumulatedTime >= fixedDelta) {
+    while (accumulatedTime >= fixedDelta && !m_pause) {
         m_sim.update(fixedDelta);
         accumulatedTime -= fixedDelta;
     }

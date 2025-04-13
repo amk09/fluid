@@ -25,4 +25,15 @@ void advect(int b, vector<float> &dataWrittenTo, vector<float> &dataReadFrom, ve
 // N will not be used here because we already have this in this class
 void set_bnd(int b, vector<float> &dataWrittenTo, int N);
 
+
+//handle the density conservation
+void conserveDensity(std::vector<float> &density, float targetDensity, int N);
+
+
+void addFountainForce(std::vector<float> &velocityX, std::vector<float> &velocityY, 
+    std::vector<float> &velocityZ, std::vector<float> &density, 
+    int N, float strength, float dt);
+
+void circulateDensity(std::vector<float> &density, int N, float dt, float rate);
+
 #endif // SOLVER_H
