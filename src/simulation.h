@@ -2,6 +2,7 @@
 
 #include "graphics/fluidcube.h"
 #include "graphics/shape.h"
+#include <QMouseEvent>
 
 class Shader;
 
@@ -17,6 +18,13 @@ public:
     void draw(Shader *shader);
 
     void toggleWire();
+
+    // Add mouse event handlers
+    void handleMousePress(int x, int y, int width, int height);
+    void handleMouseMove(int x, int y, int width, int height);
+
+
+
 private:
 
     // Below are the original FEM parameters
@@ -27,4 +35,9 @@ private:
 
     // Below are our project parameters
     FluidCube fluidCube;
+
+    // Last mouse position
+    bool m_mousePressed;
+    int m_lastMouseX = -1;
+    int m_lastMouseY = -1;
 };

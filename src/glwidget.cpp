@@ -104,25 +104,39 @@ void GLWidget::resizeGL(int w, int h)
 
 void GLWidget::mousePressEvent(QMouseEvent *event)
 {
-    m_capture = true;
     m_lastX = event->position().x();
     m_lastY = event->position().y();
+
+    // Right button controls camera rotation
+    if (event->button() == Qt::RightButton) {
+        m_cameraControl = true;
+    }
+    // Left button controls fluid interaction
+    else if (event->button() == Qt::LeftButton) {
+        m_fluidInteract = true;
+        // Immediately trigger fluid interaction
+        m_sim.handleMousePress(m_lastX, m_lastY, width(), height());
+    }
 }
 
 void GLWidget::mouseMoveEvent(QMouseEvent *event)
 {
-    if (!m_capture) return;
+    int currX = event->position().x();
+    int currY = event->position().y();
 
-    int currX  = event->position().x();
-    int currY  = event->position().y();
+    // Right button drag - camera control
+    if (m_cameraControl) {
+        int deltaX = currX - m_lastX;
+        int deltaY = currY - m_lastY;
 
-    int deltaX = currX - m_lastX;
-    int deltaY = currY - m_lastY;
-
-    if (deltaX == 0 && deltaY == 0) return;
-
-    m_camera.rotate(deltaY * ROTATE_SPEED,
-                    -deltaX * ROTATE_SPEED);
+        if (deltaX != 0 || deltaY != 0) {
+            m_camera.rotate(deltaY * ROTATE_SPEED, -deltaX * ROTATE_SPEED);
+        }
+    }
+    // Left button drag - fluid interaction
+    else if (m_fluidInteract) {
+        m_sim.handleMouseMove(currX, currY, width(), height());
+    }
 
     m_lastX = currX;
     m_lastY = currY;
@@ -130,7 +144,12 @@ void GLWidget::mouseMoveEvent(QMouseEvent *event)
 
 void GLWidget::mouseReleaseEvent(QMouseEvent *event)
 {
-    m_capture = false;
+    if (event->button() == Qt::RightButton) {
+        m_cameraControl = false;
+    }
+    else if (event->button() == Qt::LeftButton) {
+        m_fluidInteract = false;
+    }
 }
 
 void GLWidget::wheelEvent(QWheelEvent *event)
