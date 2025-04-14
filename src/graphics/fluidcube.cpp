@@ -38,8 +38,8 @@ void FluidCube::update(float dt)
         initialDensity = getTotalDensity();
     }
 
-    addFountainForce(vX, vY, vZ, density, size, 5.f, dt);
-    circulateDensity(density, size, dt, 0.1f);
+    // addFountainForce(vX, vY, vZ, density, size, 5.f, dt);
+    // circulateDensity(density, size, dt, 0.1f);
 
     // 1. Diffuse velocity
     diffuse_velocity(1, vX0, vX, visc, dt, iter, size);

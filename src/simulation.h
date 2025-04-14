@@ -10,8 +10,6 @@ class Simulation
 {
 public:
 
-
-
     Simulation();
 
     void init();
@@ -29,22 +27,16 @@ public:
 
     // Below are our project parameters
     FluidCube fluidCube;
-
-
 private:
 
     // Below are the original FEM parameters
     Shape m_shape;
 
-    Shape m_ground;
-    void initGround();
-
-
-
     // Last mouse position
     bool m_mousePressed;
     int m_lastMouseX = -1;
     int m_lastMouseY = -1;
+    int cubeSize = 0;
 
     void addDensityWithGaussian(float centerX, float centerY, float centerZ, float amount, float sigma);
     void addVelocityWithGaussian(float centerX, float centerY, float centerZ,

@@ -155,7 +155,6 @@ void set_bnd(int b, vector<float> &dataWrittenTo, int N){
 
 
 
-
 void conserveDensity(std::vector<float> &density, float targetDensity, int N) {
     float currentDensity = 0.0f;
     
@@ -182,10 +181,6 @@ void conserveDensity(std::vector<float> &density, float targetDensity, int N) {
         }
     }
 }
-
-
-
-
 
 void addFountainForce(std::vector<float> &velocityX, std::vector<float> &velocityY,
                       std::vector<float> &velocityZ, std::vector<float> &density,
