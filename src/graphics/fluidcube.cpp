@@ -1,7 +1,7 @@
 #include "fluidcube.h"
 #include "graphics/shader.h"
 #include "graphics/solver.h"
-#include "graphics/vectorfield.h" 
+#include "graphics/vectorfield.h"
 #include <iomanip>
 #include <iostream>
 
@@ -31,25 +31,16 @@ FluidCube::FluidCube()
 {
 }
 
-void FluidCube::update(float dt)
-{   
 
+void FluidCube::update(float dt)
+{
     if (initialDensity < 0.0f) {
         initialDensity = getTotalDensity();
     }
 
     addFountainForce(vX, vY, vZ, density, size, 5.f, dt);
     circulateDensity(density, size, dt, 0.1f);
-    
-    // // Debug output
-    // static int frameCount = 0;
-    // frameCount++;
-    // if (frameCount % 30 == 0) {
-    //     std::cout << "Current density: " << getTotalDensity() 
-    //               << " Initial: " << initialDensity << std::endl;
-    // }
 
-//                        WHAT WE HAD
     // 1. Diffuse velocity
     diffuse_velocity(1, vX0, vX, visc, dt, iter, size);
     diffuse_velocity(2, vY0, vY, visc, dt, iter, size);
@@ -58,25 +49,27 @@ void FluidCube::update(float dt)
     // 2. Project velocity
     project(vX0, vY0, vZ0, vX, vY, iter, size);
 
-    // 3. Advect velocity
+    // 3. Add vorticity confinement with higher strength
+    // Increasing default value from 0.5f to 2.0f for more visible swirls
+    addVorticityConfinement(vX0, vY0, vZ0, dt, size, m_vorticityStrength * 2.0f);
+
+    // 4. Advect velocity
     advect(1, vX, vX0, vX0, vY0, vZ0, dt, size);
     advect(2, vY, vY0, vX0, vY0, vZ0, dt, size);
     advect(3, vZ, vZ0, vX0, vY0, vZ0, dt, size);
 
-    // 4. Project again
+    // 5. Project again
     project(vX, vY, vZ, vX0, vY0, iter, size);
 
-    // 5. Diffuse density
+    // 6. Diffuse density
     diffuse_density(0, density0, density, diff, dt, iter, size);
 
-    // 6. Advect density
+    // 7. Advect density
     advect(0, density, density0, vX, vY, vZ, dt, size);
 
     conserveDensity(density, initialDensity, size);
-
     uploadDensityToGPU();
 }
-
 void FluidCube::draw(Shader *shader)
 {
     // // For Voxel
@@ -117,11 +110,27 @@ void FluidCube::init(int size, float diffuse, float viscosity){
     uploadDensityToGPU();
 }
 
-void FluidCube::addDensity(int x, int y, int z, float amount){
-    // The reason why we clamp here is just to make sure density is always between 0 to 1
-    // Clamp after density
+void FluidCube::addDensity(int x, int y, int z, float amount) {
+    // Clamp coordinates to valid range
+    x = std::max(1, std::min(x, size-2));
+    y = std::max(1, std::min(y, size-2));
+    z = std::max(1, std::min(z, size-2));
+
     int idx = index(x, y, z);
+
+    // Add to center cell
     density[idx] = std::clamp(density[idx] + amount, 0.0f, 1.0f);
+
+    // Add small amounts to neighboring cells for smoothness
+    float neighborAmount = amount * 0.2f;
+
+    // Add to 6 direct neighbors
+    density[index(x-1, y, z)] = std::clamp(density[index(x-1, y, z)] + neighborAmount, 0.0f, 1.0f);
+    density[index(x+1, y, z)] = std::clamp(density[index(x+1, y, z)] + neighborAmount, 0.0f, 1.0f);
+    density[index(x, y-1, z)] = std::clamp(density[index(x, y-1, z)] + neighborAmount, 0.0f, 1.0f);
+    density[index(x, y+1, z)] = std::clamp(density[index(x, y+1, z)] + neighborAmount, 0.0f, 1.0f);
+    density[index(x, y, z-1)] = std::clamp(density[index(x, y, z-1)] + neighborAmount, 0.0f, 1.0f);
+    density[index(x, y, z+1)] = std::clamp(density[index(x, y, z+1)] + neighborAmount, 0.0f, 1.0f);
 }
 
 void FluidCube::addVelocity(int x, int y, int z, float amountX, float amountY, float amountZ){
@@ -179,7 +188,7 @@ void FluidCube::uploadDensityToGPU() {
         minDensity = std::min(minDensity, density[i]);
         maxDensity = std::max(maxDensity, density[i]);
     }
-    
+
     // Apply contrast enhancement
     float range = maxDensity - minDensity;
     if (range > 0.01f) {  // Only if there's actual variation
@@ -216,12 +225,24 @@ void FluidCube::uploadDensityToGPU() {
     glBindTexture(GL_TEXTURE_3D, 0);
 }
 
-void FluidCube::drawVolume(Shader* shader){
+
+
+void FluidCube::drawVolume(Shader* shader) {
+    // For shell-only rendering (as an option)
+    if (m_renderMode == 1) {
+        drawShellOnly(shader);
+    } else {
+        // Make sure density is uploaded normally
+        uploadDensityToGPU();
+    }
+
+    // Pass color map type and render mode to shader
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_3D, m_densityTexture);
     shader->setUniform("fluidStyle", 1);
-    // shader->setUniform("densityTex", 0);
-    shader->setUniform("size" , size);
+    shader->setUniform("colorMapType", m_colorMapType);
+    shader->setUniform("renderMode", m_renderMode);
+    shader->setUniform("size", size);
 
     glBindVertexArray(m_fullscreen_vao);
     glDrawArrays(GL_TRIANGLES, 0, 6);
@@ -279,7 +300,7 @@ void FluidCube::drawVoxel(Shader* shader){
 
     float voxelSize = 1.0f / size;
 
-    #pragma omp parallel for
+#pragma omp parallel for
     for (int z = 0; z < size; ++z)
         for (int y = 0; y < size; ++y)
             for (int x = 0; x < size; ++x) {
@@ -315,82 +336,53 @@ void FluidCube::toggleWireframe()
 
 // Below is for the test methods
 void FluidCube::test() {
-    // int center = size / 2;
-
-    // // A Sphere
-    // int radius = size / 8;
-    // int radius2 = radius * radius;
-
-    // for (int z = 0; z < size; ++z){
-    //     for (int y = 0; y < size; ++y){
-    //         for (int x = 0; x < size; ++x) {
-    //             int dx = x - center;
-    //             int dy = y - center;
-    //             int dz = z - center;
-    //             int dist2 = dx * dx + dy * dy + dz * dz;
-
-    //             if (dist2 < radius2)
-    //                 addDensity(x, y, z, 1.0f);
-    //         }
-    //     }
-    // }
-
-    // // VectorFields::addVortexField(vX, vY, vZ, density, size, 2.0f);
-
-    // // // A Cube
-    // // for (int z = 0; z < size; ++z)
-    // //     for (int y = 0; y < size; ++y)
-    // //         for (int x = 0; x < size; ++x)
-    // //             addDensity(x, y, z, 0.5f);
+    // No initial density or velocity - clean slate
+    // This will make the simulation start with an empty cube
+    // Density and velocity will only be added when the user interacts with mouse
 
     int center = size / 2;
-    
-    // Create a pool of water at the bottom third of the container
-    int waterHeight = size / 3;
-    
-    for (int z = 0; z < size; ++z) {
-        for (int y = 0; y < waterHeight; ++y) {
-            for (int x = 0; x < size; ++x) {
-                // Add density that decreases with height for natural water look
-                float heightFactor = 1.0f - (float)y / waterHeight;
-                addDensity(x, y, z, 0.8f * heightFactor);
-            }
-        }
-    }
 
-    if (1) {
-        int fountainRadius = size / 10;
-        for (int z = center - fountainRadius; z <= center + fountainRadius; z++) {
-            for (int x = center - fountainRadius; x <= center + fountainRadius; x++) {
+    // Just initialize the vortex field around the center for better interaction
+    // when the user does add density with mouse
+    float vortexRadius = size / 8.0f;
+    float vortexStrength = 3.0f;
+
+    for (int z = 0; z < size; z++) {
+        for (int y = 0; y < size/2; y++) {
+            for (int x = 0; x < size; x++) {
                 float dx = x - center;
                 float dz = z - center;
-                
-                if ((dx*dx + dz*dz) <= fountainRadius*fountainRadius) {
-                    for (int y = 0; y < 3; y++) {
-                        addVelocity(x, y, z, 0.0f, 5.0f, 0.0f);
-                    }
+                float dist = sqrt(dx*dx + dz*dz);
+
+                // Create rotation field but don't add any density
+                if (dist > 0.1f && dist < vortexRadius) {
+                    float factor = vortexStrength * (1.0f - dist/vortexRadius);
+
+                    // Add rotational velocity only
+                    vX[index(x, y, z)] += -dz * factor / (dist + 0.1f);
+                    vZ[index(x, y, z)] += dx * factor / (dist + 0.1f);
+
+                    // No density added
                 }
             }
         }
     }
-
 }
-
 
 
 
 
 void FluidCube::visualizeVelocity() {
     float maxVelocity = 0.0f;
-    
+
     // Find maximum velocity magnitude
     for (int i = 0; i < vX.size(); i++) {
         float magnitude = std::sqrt(vX[i]*vX[i] + vY[i]*vY[i] + vZ[i]*vZ[i]);
         maxVelocity = std::max(maxVelocity, magnitude);
     }
-    
+
     std::cout << "Maximum velocity: " << maxVelocity << std::endl;
-    
+
     // Convert velocity to density for visualization
     if (maxVelocity > 0.001f) {
         for (int i = 0; i < density.size(); i++) {
@@ -399,4 +391,68 @@ void FluidCube::visualizeVelocity() {
             density[i] = std::min(1.0f, density[i] + magnitude / maxVelocity * 0.2f);
         }
     }
+}
+
+
+
+
+void FluidCube::setColorMap(int colorType) {
+    m_colorMapType = colorType;
+}
+
+void FluidCube::drawShellOnly(Shader *shader) {
+    // Create a temporary array to store shell information
+    std::vector<float> shellDensity(size * size * size, 0.0f);
+
+    // Detect shell cells (cells that have density and at least one neighbor without density)
+    // Using lower threshold (0.005f) for higher sensitivity in edge detection
+    for (int k = 1; k < size-1; k++) {
+        for (int j = 1; j < size-1; j++) {
+            for (int i = 1; i < size-1; i++) {
+                int idx = index(i, j, k);
+
+                // Skip very low density cells
+                if (density[idx] < 0.005f) continue;
+
+                // Check if any of the six adjacent cells has low density (with increased sensitivity)
+                bool isShell = false;
+                if (density[index(i-1, j, k)] < 0.005f || density[index(i+1, j, k)] < 0.005f ||
+                    density[index(i, j-1, k)] < 0.005f || density[index(i, j+1, k)] < 0.005f ||
+                    density[index(i, j, k-1)] < 0.005f || density[index(i, j, k+1)] < 0.005f) {
+                    isShell = true;
+                }
+
+                // If it's a shell cell, enhance its density for better visibility
+                shellDensity[idx] = isShell ? density[idx] * 3.0f : 0.0f;
+            }
+        }
+    }
+
+    // Upload this modified density field to GPU
+    uploadCustomDensityToGPU(shellDensity);
+}
+
+void FluidCube::uploadCustomDensityToGPU(const std::vector<float>& customDensity) {
+    if (m_densityTexture == 0)
+        glGenTextures(1, &m_densityTexture);
+
+    glBindTexture(GL_TEXTURE_3D, m_densityTexture);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+    glTexImage3D(
+        GL_TEXTURE_3D,
+        0,
+        GL_R32F,
+        size, size, size,
+        0,
+        GL_RED,
+        GL_FLOAT,
+        customDensity.data()
+        );
+
+    glBindTexture(GL_TEXTURE_3D, 0);
 }

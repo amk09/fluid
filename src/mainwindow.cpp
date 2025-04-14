@@ -8,6 +8,9 @@ MainWindow::MainWindow()
     QHBoxLayout *container = new QHBoxLayout;
     container->addWidget(glWidget);
     this->setLayout(container);
+
+    // Set a larger window size for better visualization
+    this->resize(1024, 768);
 }
 
 MainWindow::~MainWindow()

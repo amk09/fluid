@@ -41,6 +41,19 @@ public:
     //debugger
     void visualizeVelocity();
     float getTotalDensity();
+
+
+    void drawShellOnly(Shader *shader);
+    void uploadCustomDensityToGPU(const std::vector<float>& customDensity);
+    void setColorMap(int colorType);
+    int getColorMap() const { return m_colorMapType; }
+    void setRenderMode(int mode) { m_renderMode = mode; }
+    int getRenderMode() const { return m_renderMode; }
+
+    void setVorticityStrength(float strength) { m_vorticityStrength = strength; }
+    float getVorticityStrength() const { return m_vorticityStrength; }
+
+
 private:
 
     float initialDensity = -1.0f;
@@ -59,6 +72,8 @@ private:
     void drawVoxel(Shader* shader);
     void initFullscreenQuad();
     void drawVolume(Shader* shader);
+
+
 
     // Below are the parameters for Stable Fluids
     int size; // 'N' in the paper and the rest of codes, how many grids you want to divide the cube edges
@@ -80,10 +95,16 @@ private:
     // Below are the main functions should be done in Stable Fluids
     int iter = 1; // This is the key parameter to solve stable formula (20 in the paper; 10 in the video; 4 in the website)
 
+    float m_vorticityStrength = 0.5f;  // Default vorticity strength
+
+
     // Some getters here only to reduce the difficulty of extracting data
     int index(int x, int y, int z){
         return (x) + (y) * size + (z) * size * size;
     }
+
+    int m_colorMapType = 0;  // 0: default, 1: blue, 2: purple, 3: cyan-yellow, 4: orange-grey
+    int m_renderMode = 0;    // 0: volume, 1: shell
 
     // Some updates
     void uploadDensityToGPU();

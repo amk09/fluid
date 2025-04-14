@@ -9,6 +9,9 @@ class Shader;
 class Simulation
 {
 public:
+
+
+
     Simulation();
 
     void init();
@@ -24,6 +27,9 @@ public:
     void handleMouseMove(int x, int y, int width, int height);
 
 
+    // Below are our project parameters
+    FluidCube fluidCube;
+
 
 private:
 
@@ -33,11 +39,14 @@ private:
     Shape m_ground;
     void initGround();
 
-    // Below are our project parameters
-    FluidCube fluidCube;
+
 
     // Last mouse position
     bool m_mousePressed;
     int m_lastMouseX = -1;
     int m_lastMouseY = -1;
+
+    void addDensityWithGaussian(float centerX, float centerY, float centerZ, float amount, float sigma);
+    void addVelocityWithGaussian(float centerX, float centerY, float centerZ,
+                                 float velX, float velY, float velZ, float sigma);
 };
