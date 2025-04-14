@@ -43,6 +43,7 @@ GLWidget::~GLWidget()
 
 // ================== Basic OpenGL Overrides
 
+
 void GLWidget::initializeGL()
 {
     // Initialize GL extension wrangler
@@ -51,8 +52,8 @@ void GLWidget::initializeGL()
     if (err != GLEW_OK) fprintf(stderr, "Error while initializing GLEW: %s\n", glewGetErrorString(err));
     fprintf(stdout, "Successfully initialized GLEW %s\n", glewGetString(GLEW_VERSION));
 
-    // Set clear color to white
-    glClearColor(1, 1, 1, 1);
+    // Set clear color to black
+    glClearColor(0, 0, 0, 1);
 
     // Enable depth-testing and backface culling
     glEnable(GL_DEPTH_TEST);
@@ -63,11 +64,12 @@ void GLWidget::initializeGL()
     m_shader = new Shader(":/resources/shaders/shader.vert", ":/resources/shaders/shader.frag");
     m_sim.init();
 
-    // Initialize camera with a reasonable transform
-    Eigen::Vector3f eye    = {0, 2, -5};
+    // Initialize camera with a closer position
+    Eigen::Vector3f eye    = {0, 2, -8};
     Eigen::Vector3f target = {0, 1,  0};
     m_camera.lookAt(eye, target);
     m_camera.setOrbitPoint(target);
+
     m_camera.setPerspective(120, width() / static_cast<float>(height()), 0.1, 50);
 
     m_deltaTimeProvider.start();
@@ -172,6 +174,44 @@ void GLWidget::keyPressEvent(QKeyEvent *event)
     case Qt::Key_R: m_vertical += SPEED; break;
     case Qt::Key_C: m_camera.toggleIsOrbiting(); break;
     case Qt::Key_T: m_sim.toggleWire(); break;
+
+    // Added color and rendering mode switch keys
+    case Qt::Key_1:
+        m_sim.fluidCube.setColorMap(1);
+        break;
+    case Qt::Key_2:
+        m_sim.fluidCube.setColorMap(2);
+        break;
+    case Qt::Key_3:
+        m_sim.fluidCube.setColorMap(3);
+        break;
+    case Qt::Key_4:
+        m_sim.fluidCube.setColorMap(4);
+        break;
+    case Qt::Key_0:
+        m_sim.fluidCube.setColorMap(0);
+        break;
+
+    case Qt::Key_M:
+        // Toggle shell rendering
+        m_sim.fluidCube.setRenderMode(
+            m_sim.fluidCube.getRenderMode() == 0 ? 1 : 0);
+        std::cout << "Render Mode: " << (m_sim.fluidCube.getRenderMode() == 0 ? "Volume" : "Shell") << std::endl;
+        break;
+
+    // Add vorticity strength control
+    case Qt::Key_V: // Increase vorticity
+        m_sim.fluidCube.setVorticityStrength(
+            m_sim.fluidCube.getVorticityStrength() + 0.2f);
+        std::cout << "Vorticity Strength: " << m_sim.fluidCube.getVorticityStrength() << std::endl;
+        break;
+
+    case Qt::Key_B: // Decrease vorticity
+        m_sim.fluidCube.setVorticityStrength(
+            std::max(0.0f, m_sim.fluidCube.getVorticityStrength() - 0.2f));
+        std::cout << "Vorticity Strength: " << m_sim.fluidCube.getVorticityStrength() << std::endl;
+        break;
+
     case Qt::Key_Escape: QApplication::quit();
     }
 }

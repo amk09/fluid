@@ -187,12 +187,12 @@ void conserveDensity(std::vector<float> &density, float targetDensity, int N) {
 
 
 
-void addFountainForce(std::vector<float> &velocityX, std::vector<float> &velocityY, 
-    std::vector<float> &velocityZ, std::vector<float> &density, 
-    int N, float strength, float dt) {
+void addFountainForce(std::vector<float> &velocityX, std::vector<float> &velocityY,
+                      std::vector<float> &velocityZ, std::vector<float> &density,
+                      int N, float strength, float dt) {
     int center = N / 2;
-    int fountainRadius = N / 10;  // Width of the fountain
-    float fountainStrength = strength * dt;
+    int fountainRadius = N / 20;  // Reduced radius for more concentrated fountain
+    float fountainStrength = strength * dt * 1.5f;  // Increased strength
 
     // Apply upward force in a focused area at bottom
     for (int k = center - fountainRadius; k <= center + fountainRadius; k++) {
@@ -203,7 +203,7 @@ void addFountainForce(std::vector<float> &velocityX, std::vector<float> &velocit
             float dist2 = dx*dx + dz*dz;
 
             if (dist2 > fountainRadius*fountainRadius)
-            continue;
+                continue;
 
             // Apply force stronger at center, weaker at edges
             float radiusFactor = 1.0f - sqrt(dist2) / fountainRadius;
@@ -211,46 +211,44 @@ void addFountainForce(std::vector<float> &velocityX, std::vector<float> &velocit
 
             // Apply to bottom cells
             for (int j = 0; j < 3; j++) {
-            int idx = IX(i, j, k, N);
+                int idx = IX(i, j, k, N);
 
-            // Add upward velocity
-            velocityY[idx] += force;
+                // Add upward velocity
+                velocityY[idx] += force * 1.5f;  // More upward force
 
-            // Add slight X/Z variation 
-            velocityX[idx] += (((float)rand()/RAND_MAX) * 0.2f - 0.1f) * force * 0.2f;
-            velocityZ[idx] += (((float)rand()/RAND_MAX) * 0.2f - 0.1f) * force * 0.2f;
+                // Add very slight X/Z variation to avoid perfect symmetry
+                velocityX[idx] += (((float)rand()/RAND_MAX) * 0.1f - 0.05f) * force * 0.1f;
+                velocityZ[idx] += (((float)rand()/RAND_MAX) * 0.1f - 0.05f) * force * 0.1f;
             }
         }
     }
 
-    
     set_bnd(1, velocityX, N);
     set_bnd(2, velocityY, N);
     set_bnd(3, velocityZ, N);
 }
 
 
-
 void circulateDensity(std::vector<float> &density, int N, float dt, float rate) {
     int center = N / 2;
-    int sourceRadius = N / 10;
-    int sinkRadius = N / 6;
-    float transferRate = rate * dt;
-    
+    int sourceRadius = N / 20;  // Smaller source radius
+    int sinkRadius = N / 15;    // Smaller sink radius
+    float transferRate = rate * dt * 1.5f;  // Increased transfer rate
+
     std::vector<float> densityChange(density.size(), 0.0f);
     float totalRemoved = 0.0f;
-    
-    // First pass: remove density from top of fluid
+
+    // First pass: remove density from top of fluid in a concentrated area
     for (int k = center - sinkRadius; k <= center + sinkRadius; k++) {
         for (int i = center - sinkRadius; i <= center + sinkRadius; i++) {
             float dx = i - center;
             float dz = k - center;
             float dist2 = dx*dx + dz*dz;
-            
+
             if (dist2 > sinkRadius*sinkRadius)
                 continue;
-                
-            
+
+            // Remove from top cells
             for (int j = N-5; j < N-1; j++) {
                 int idx = IX(i, j, k, N);
                 float amountToRemove = density[idx] * transferRate;
@@ -259,49 +257,131 @@ void circulateDensity(std::vector<float> &density, int N, float dt, float rate) 
             }
         }
     }
-    
-    // Second pass: add density to the fountain source
+
+    // Second pass: add density to the fountain source (concentrated)
     int fountainPoints = 0;
     for (int k = center - sourceRadius; k <= center + sourceRadius; k++) {
         for (int i = center - sourceRadius; i <= center + sourceRadius; i++) {
             float dx = i - center;
             float dz = k - center;
             float dist2 = dx*dx + dz*dz;
-            
+
             if (dist2 > sourceRadius*sourceRadius)
                 continue;
-                
+
             // Count points for bottom source
             for (int j = 0; j < 3; j++) {
                 fountainPoints++;
             }
         }
     }
-    
-    
+
     float addPerCell = fountainPoints > 0 ? totalRemoved / fountainPoints : 0;
-    
+
     for (int k = center - sourceRadius; k <= center + sourceRadius; k++) {
         for (int i = center - sourceRadius; i <= center + sourceRadius; i++) {
             float dx = i - center;
             float dz = k - center;
             float dist2 = dx*dx + dz*dz;
-            
+
             if (dist2 > sourceRadius*sourceRadius)
                 continue;
-                
-            
+
+            // Add to bottom cells
             for (int j = 0; j < 3; j++) {
                 int idx = IX(i, j, k, N);
                 densityChange[idx] += addPerCell;
             }
         }
     }
-    
-   
+
+    // Apply density changes
     for (int i = 0; i < density.size(); i++) {
         density[i] += densityChange[i];
         // Clamp density to [0, 1]
         density[i] = std::max(0.0f, std::min(density[i], 1.0f));
     }
+}
+
+void addVorticityConfinement(std::vector<float> &vX, std::vector<float> &vY,
+                             std::vector<float> &vZ, float dt, int N, float vorticityStrength) {
+    // Temporary arrays for curl (vorticity) calculation
+    std::vector<float> curlX(N*N*N, 0.0f);
+    std::vector<float> curlY(N*N*N, 0.0f);
+    std::vector<float> curlZ(N*N*N, 0.0f);
+    std::vector<float> curlMagnitude(N*N*N, 0.0f);
+
+// Step 1: Calculate curl (∇ × v) at each cell
+#pragma omp parallel for collapse(3)
+    for (int k = 1; k < N-1; k++) {
+        for (int j = 1; j < N-1; j++) {
+            for (int i = 1; i < N-1; i++) {
+                int idx = IX(i, j, k, N);
+
+                // Calculate partial derivatives using central differences
+                float dvz_dy = (vZ[IX(i, j+1, k, N)] - vZ[IX(i, j-1, k, N)]) * 0.5f;
+                float dvy_dz = (vY[IX(i, j, k+1, N)] - vY[IX(i, j, k-1, N)]) * 0.5f;
+
+                float dvx_dz = (vX[IX(i, j, k+1, N)] - vX[IX(i, j, k-1, N)]) * 0.5f;
+                float dvz_dx = (vZ[IX(i+1, j, k, N)] - vZ[IX(i-1, j, k, N)]) * 0.5f;
+
+                float dvy_dx = (vY[IX(i+1, j, k, N)] - vY[IX(i-1, j, k, N)]) * 0.5f;
+                float dvx_dy = (vX[IX(i, j+1, k, N)] - vX[IX(i, j-1, k, N)]) * 0.5f;
+
+                // Curl components (vorticity)
+                curlX[idx] = dvz_dy - dvy_dz;
+                curlY[idx] = dvx_dz - dvz_dx;
+                curlZ[idx] = dvy_dx - dvx_dy;
+
+                // Calculate curl magnitude
+                curlMagnitude[idx] = sqrtf(
+                    curlX[idx] * curlX[idx] +
+                    curlY[idx] * curlY[idx] +
+                    curlZ[idx] * curlZ[idx]
+                    );
+            }
+        }
+    }
+
+// Step 2: Calculate normalized vorticity confinement force: N × ω
+// N is the normalized gradient of the curl magnitude
+#pragma omp parallel for collapse(3)
+    for (int k = 1; k < N-1; k++) {
+        for (int j = 1; j < N-1; j++) {
+            for (int i = 1; i < N-1; i++) {
+                int idx = IX(i, j, k, N);
+
+                // Skip cells with very small curl
+                if (curlMagnitude[idx] < 0.000001f) continue;
+
+                // Calculate gradient of curl magnitude using central differences
+                float dx = (curlMagnitude[IX(i+1, j, k, N)] - curlMagnitude[IX(i-1, j, k, N)]) * 0.5f;
+                float dy = (curlMagnitude[IX(i, j+1, k, N)] - curlMagnitude[IX(i, j-1, k, N)]) * 0.5f;
+                float dz = (curlMagnitude[IX(i, j, k+1, N)] - curlMagnitude[IX(i, j, k-1, N)]) * 0.5f;
+
+                // Normalize gradient
+                float length = sqrtf(dx*dx + dy*dy + dz*dz);
+                if (length > 0.000001f) {
+                    dx /= length;
+                    dy /= length;
+                    dz /= length;
+
+                    // Calculate force as cross product: N × ω (normalized gradient × curl)
+                    float forceX = (dy * curlZ[idx] - dz * curlY[idx]) * vorticityStrength;
+                    float forceY = (dz * curlX[idx] - dx * curlZ[idx]) * vorticityStrength;
+                    float forceZ = (dx * curlY[idx] - dy * curlX[idx]) * vorticityStrength;
+
+                    // Apply force scaled by time step
+                    vX[idx] += forceX * dt;
+                    vY[idx] += forceY * dt;
+                    vZ[idx] += forceZ * dt;
+                }
+            }
+        }
+    }
+
+    // Apply boundary conditions
+    set_bnd(1, vX, N);
+    set_bnd(2, vY, N);
+    set_bnd(3, vZ, N);
 }

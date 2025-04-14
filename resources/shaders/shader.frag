@@ -21,9 +21,13 @@ uniform mat4 invViewProj;
 // Fluid style: 0=gray, 1=blue water
 uniform int fluidStyle = 1;  // Default to blue water
 
-// Define the position of the box
-const vec3 boxMin = vec3(-0.5);
-const vec3 boxMax = vec3(0.5);
+uniform int colorMapType = 0; // Default colormap
+
+uniform int renderMode = 0; // 0: volume, 1: shell
+
+// Define the position of the box - increased from 0.5 to 2.0 for larger display
+const vec3 boxMin = vec3(-2.0);
+const vec3 boxMax = vec3(2.0);
 
 // Set the step parameters in ray marching
 // If the simulation is not detailed enough, we should decrease stepSize or increase maxSteps
@@ -50,6 +54,7 @@ float fresnel(float cosTheta, float F0) {
     return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
 }
 
+
 void main() {
     // Step1: vUV [0, 1] to [-1, 1] (NDC coord)
     vec2 screenPos = vUV * 2.0 - 1.0;
@@ -73,7 +78,7 @@ void main() {
 
     // What we want for steps: (tMax - tMin) / stepSize ≈ maxSteps
     float rayLength = tExit - tEnter;
-    float stepSize = 0.5 / float(size);  // Half voxel
+    float stepSize = 0.4 / float(size);  // Reduced from 0.5 for more detailed sampling
     int maxSteps = int(rayLength / stepSize) + 1;
 
     // Read the enter time and enter position
@@ -128,29 +133,76 @@ void main() {
         if (fluidStyle == 0) {  // Gray (original)
             color = vec3(1.0 - density);
             alphaValue = density * 0.15;
-        }
+        }        
         else if (fluidStyle == 1) {  // Blue water
-            // Base water color based on depth
-            float depth = texCoord.y;
-            color = mix(waterDeepColor, waterBaseColor, depth);
-            
-            // Add foam effect to high density areas
-            color = mix(color, waterHighlightColor, pow(density, 3.0) * 0.5);
-            
-            // Add surface reflection at top of fluid, smooth transition that affects the top 20% of the fluid
-            float surfaceFactor = smoothstep(0.8, 1.0, texCoord.y);
-            color = mix(color, waterSurfaceColor, surfaceFactor * 0.5); //light blue
-            
-            // Add edge highlights for whose density changes rapidly
-            color = mix(color, waterHighlightColor, clamp(edge, 0.0, 0.5));
-            
-            alphaValue = density * 0.15 * (1.0 + 0.5 * depth);
-            
-            // Add Fresnel effect at glancing angles (path)
-            float fresnelEffect = fresnel(abs(dot(rayDir, vec3(0.0, 1.0, 0.0))), 0.02);
-            color = mix(color, waterSurfaceColor, fresnelEffect * 0.3);
+            if (colorMapType == 0) {
+                // Original blue water color logic
+                float depth = texCoord.y;
+                color = mix(waterDeepColor, waterBaseColor, depth);
+
+                // Add foam effect to high density areas
+                color = mix(color, waterHighlightColor, pow(density, 3.0) * 0.5);
+
+                // Add surface reflection at top of fluid, smooth transition that affects the top 20% of the fluid
+                float surfaceFactor = smoothstep(0.8, 1.0, texCoord.y);
+                color = mix(color, waterSurfaceColor, surfaceFactor * 0.5); //light blue
+
+                // Add edge highlights for whose density changes rapidly
+                color = mix(color, waterHighlightColor, clamp(edge, 0.0, 0.5));
+
+                // Adjust alpha value based on render mode
+                if (renderMode == 1) {  // Shell rendering mode
+                    // Increase alpha value for shell rendering mode for better visibility
+                    alphaValue = density * 0.4 * (1.0 + 0.5 * depth);  // 0.15 -> 0.4 for stronger opacity
+                } else {
+                    // Normal volume rendering
+                    alphaValue = density * 0.15 * (1.0 + 0.5 * depth);
+                }
+
+                // Add Fresnel effect at glancing angles (path)
+                float fresnelEffect = fresnel(abs(dot(rayDir, vec3(0.0, 1.0, 0.0))), 0.02);
+                color = mix(color, waterSurfaceColor, fresnelEffect * 0.3);
+            } else {
+                // Use our new color mapping function
+                vec3 baseColor;
+
+                if (colorMapType == 1) {
+                    // Cyan-blue theme
+                    baseColor = mix(vec3(0.0, 0.8, 1.0), vec3(0.0, 0.2, 0.5), pow(density, 0.7));
+                }
+                else if (colorMapType == 2) {
+                    // Purple electric theme
+                    baseColor = mix(vec3(0.5, 0.0, 1.0), vec3(0.2, 0.0, 0.5), density);
+                }
+                else if (colorMapType == 3) {
+                    // Cyan-yellow gradient
+                    baseColor = mix(vec3(0.0, 0.8, 0.8), vec3(1.0, 0.8, 0.0), density);
+                }
+                else if (colorMapType == 4) {
+                    // Orange-grey explosion effect
+                    baseColor = mix(vec3(1.0, 0.5, 0.0), vec3(0.7, 0.7, 0.7), density);
+                }
+
+                color = baseColor;
+
+                // Still apply edge highlights for all color schemes
+                color = mix(color, vec3(1.0), clamp(edge, 0.0, 0.5));
+
+                // Adjust alpha value based on render mode
+                if (renderMode == 1) {  // Shell rendering mode
+                    // Increase alpha value for shell rendering mode
+                    alphaValue = density * 0.5;  // 0.2 -> 0.5 for stronger opacity
+                } else {
+                    // Normal volume rendering
+                    alphaValue = density * 0.2;
+                }
+
+                // Add Fresnel effect at glancing angles
+                float fresnelEffect = fresnel(abs(dot(rayDir, vec3(0.0, 1.0, 0.0))), 0.02);
+                color = mix(color, vec3(1.0), fresnelEffect * 0.3);
+            }
         }
-       
+
 
         // Alpha Blending
         finalColor.rgb += (1.0 - finalColor.a) * alphaValue * color;
