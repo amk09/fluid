@@ -31,6 +31,27 @@ FluidCube::FluidCube()
 {
 }
 
+void FluidCube::addSource(vector<float> x, vector<float> x0)
+{
+    for (int i = 0; i < totalCells; i++)
+    {
+        x[i] += dt * x0[i];
+    }
+}
+
+void FluidCube::empty_vel(){
+    for(int i = 0; i < vX0.size(); i++){
+        vX0[i] = 0.0f;
+        vY0[i] = 0.0f;
+        vZ0[i] = 0.0f;
+    }
+}
+
+void FluidCube::empty_den(){
+    for(int i = 0; i < density0.size(); i++){
+        density0[i] = 0.0f;
+    }
+}
 
 void FluidCube::update(float dt)
 {
@@ -38,28 +59,100 @@ void FluidCube::update(float dt)
         initialDensity = getTotalDensity();
     }
 
-    addFountainForce(vX, vY, vZ, density, size, 5.f, dt);
-    circulateDensity(density, size, dt, 0.1f);
+    #pragma omp parallel sections
+        {
+    #pragma omp section
+            {
+                addSource(vX, vX0);
+            }
 
-    // 1. Diffuse velocity
-    diffuse_velocity(1, vX0, vX, visc, dt, iter, size);
-    diffuse_velocity(2, vY0, vY, visc, dt, iter, size);
-    diffuse_velocity(3, vZ0, vZ, visc, dt, iter, size);
+    #pragma omp section
+            {
+                addSource(vY, vY0);
+            }
 
-    // 2. Project velocity
-    project(vX0, vY0, vZ0, vX, vY, iter, size);
+    #pragma omp section
+            {
+                addSource(vZ, vZ0);
+            }
+        }
 
     // 3. Add vorticity confinement with higher strength
     // Increasing default value from 0.5f to 2.0f for more visible swirls
     addVorticityConfinement(vX0, vY0, vZ0, dt, size, m_vorticityStrength * 2.0f);
 
+
+    #pragma omp parallel sections
+        {
+    #pragma omp section
+            {
+                addSource(vX, vX0);
+            }
+
+    #pragma omp section
+            {
+                addSource(vY, vY0);
+            }
+
+    #pragma omp section
+            {
+                addSource(vZ, vZ0);
+            }
+        }
+
+    // 1. Diffuse velocity
+
+
+    #pragma omp parallel sections
+        {
+    #pragma omp section
+            {
+                diffuse_velocity(1, vX0, vX, visc, dt, iter, size);
+            }
+
+    #pragma omp section
+            {
+                diffuse_velocity(2, vY0, vY, visc, dt, iter, size);
+            }
+
+    #pragma omp section
+            {
+                diffuse_velocity(3, vZ0, vZ, visc, dt, iter, size);
+            }
+        }
+
+
+    // 2. Project velocity
+    project(vX0, vY0, vZ0, vX, vY, iter, size);
+
     // 4. Advect velocity
-    advect(1, vX, vX0, vX0, vY0, vZ0, dt, size);
-    advect(2, vY, vY0, vX0, vY0, vZ0, dt, size);
-    advect(3, vZ, vZ0, vX0, vY0, vZ0, dt, size);
+
+
+    #pragma omp parallel sections
+        {
+    #pragma omp section
+            {
+                advect(1, vX, vX0, vX0, vY0, vZ0, dt, size);
+            }
+
+    #pragma omp section
+            {
+                advect(2, vY, vY0, vX0, vY0, vZ0, dt, size);
+            }
+
+    #pragma omp section
+            {
+                advect(3, vZ, vZ0, vX0, vY0, vZ0, dt, size);
+            }
+        }
+
 
     // 5. Project again
     project(vX, vY, vZ, vX0, vY0, iter, size);
+
+    empty_vel();
+
+    addSource(density, density0);
 
     // 6. Diffuse density
     diffuse_density(0, density0, density, diff, dt, iter, size);
@@ -67,7 +160,11 @@ void FluidCube::update(float dt)
     // 7. Advect density
     advect(0, density, density0, vX, vY, vZ, dt, size);
 
-    conserveDensity(density, initialDensity, size);
+    empty_den();
+
+    cout << getTotalDensity() << endl;
+
+    // conserveDensity(density, initialDensity, size);
     uploadDensityToGPU();
 }
 void FluidCube::draw(Shader *shader)
@@ -83,9 +180,7 @@ void FluidCube::init(int size, float diffuse, float viscosity){
     this->size = size;
     this->diff = diffuse;
     this->visc= viscosity;
-
-    // Below is the number of cells in this cube
-    int totalCells = size * size * size;
+    this->totalCells = size*size*size;
 
     // We resize the density and velocity vectors with 0.0f value
     // Not just make sure they are pre-allocated, but also there is no density and velocity in the fluid cube

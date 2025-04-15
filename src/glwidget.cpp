@@ -238,7 +238,7 @@ void GLWidget::tick()
 {
     // Run at 60 FPS
     float accumulatedTime = 0.0f;
-    const float fixedDelta = 1.0f / 60.0f;
+    const float fixedDelta = 1.0f / 120.0f;
 
     float deltaSeconds = m_deltaTimeProvider.restart() / 1000.f;
     accumulatedTime += deltaSeconds;

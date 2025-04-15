@@ -46,12 +46,12 @@ public:
     void drawShellOnly(Shader *shader);
     void uploadCustomDensityToGPU(const std::vector<float>& customDensity);
     void setColorMap(int colorType);
-    int getColorMap() const { return m_colorMapType; }
-    void setRenderMode(int mode) { m_renderMode = mode; }
-    int getRenderMode() const { return m_renderMode; }
+    int getColorMap() const;
+    void setRenderMode(int mode);
+    int getRenderMode() const;
 
-    void setVorticityStrength(float strength) { m_vorticityStrength = strength; }
-    float getVorticityStrength() const { return m_vorticityStrength; }
+    void setVorticityStrength(float strength);
+    float getVorticityStrength() const;
 
 
 private:
@@ -80,6 +80,7 @@ private:
     float dt; // Time Step, do we really need this? Since we update it in our tick with a fixed time step? I decieded not to use it at start.
     float diff; // The parameter controls the diffuse // For Density to Spread Out in the Fluid Cube
     float visc; // Thickness of the fluids // For Velocity to Spread Out in the Fluid Cube
+    int totalCells;
 
     // Although they are written in Previous and Current versions.
     // Actually they are just stated to swap to use instead of a really previous or current state. （eg. temp? value)
@@ -93,15 +94,13 @@ private:
     vector<float> vZ; // Current z-direction velocity
 
     // Below are the main functions should be done in Stable Fluids
-    int iter = 1; // This is the key parameter to solve stable formula (20 in the paper; 10 in the video; 4 in the website)
+    int iter = 4; // This is the key parameter to solve stable formula (20 in the paper; 10 in the video; 4 in the website)
 
     float m_vorticityStrength = 0.5f;  // Default vorticity strength
 
 
     // Some getters here only to reduce the difficulty of extracting data
-    int index(int x, int y, int z){
-        return (x) + (y) * size + (z) * size * size;
-    }
+    int index(int x, int y, int z);
 
     int m_colorMapType = 0;  // 0: default, 1: blue, 2: purple, 3: cyan-yellow, 4: orange-grey
     int m_renderMode = 0;    // 0: volume, 1: shell
@@ -109,8 +108,28 @@ private:
     // Some updates
     void uploadDensityToGPU();
 
+
+    void addSource(vector<float> x, vector<float> x0);
+
+    void empty_vel();
+    void empty_den();
+
     // Some tests
     void test();
 };
+
+inline int FluidCube::getColorMap() const { return m_colorMapType; }
+
+inline void FluidCube::setRenderMode(int mode) { m_renderMode = mode; }
+
+inline int FluidCube::getRenderMode() const { return m_renderMode; }
+
+inline void FluidCube::setVorticityStrength(float strength) { m_vorticityStrength = strength; }
+
+inline float FluidCube::getVorticityStrength() const { return m_vorticityStrength; }
+
+inline int FluidCube::index(int x, int y, int z){
+    return (x) + (y) * size + (z) * size * size;
+}
 
 #endif // FLUIDCUBE_H
