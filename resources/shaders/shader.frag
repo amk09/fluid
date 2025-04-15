@@ -133,8 +133,7 @@ void main() {
         if (fluidStyle == 0) {  // Gray (original)
             color = vec3(1.0 - density);
             alphaValue = density * 0.15;
-        }        
-        else if (fluidStyle == 1) {  // Blue water
+        }  else if (fluidStyle == 1) {  // Blue water
             if (colorMapType == 0) {
                 // Original blue water color logic
                 float depth = texCoord.y;

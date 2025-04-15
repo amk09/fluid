@@ -5,14 +5,6 @@
 #include <iomanip>
 #include <iostream>
 
-float FluidCube::getTotalDensity() {
-    float total = 0.0f;
-    for (int i = 0; i < density.size(); i++) {
-        total += density[i];
-    }
-    return total;
-}
-
 FluidCube::FluidCube()
     : m_vao(0),
     m_vbo(0),
@@ -31,53 +23,9 @@ FluidCube::FluidCube()
 {
 }
 
-void FluidCube::addSource(vector<float> x, vector<float> x0)
-{
-    for (int i = 0; i < totalCells; i++)
-    {
-        x[i] += dt * x0[i];
-    }
-}
-
-void FluidCube::empty_vel(){
-    for(int i = 0; i < vX0.size(); i++){
-        vX0[i] = 0.0f;
-        vY0[i] = 0.0f;
-        vZ0[i] = 0.0f;
-    }
-}
-
-void FluidCube::empty_den(){
-    for(int i = 0; i < density0.size(); i++){
-        density0[i] = 0.0f;
-    }
-}
-
 void FluidCube::update(float dt)
 {
-    if (initialDensity < 0.0f) {
-        initialDensity = getTotalDensity();
-    }
-
-    #pragma omp parallel sections
-        {
-    #pragma omp section
-            {
-                addSource(vX, vX0);
-            }
-
-    #pragma omp section
-            {
-                addSource(vY, vY0);
-            }
-
-    #pragma omp section
-            {
-                addSource(vZ, vZ0);
-            }
-        }
-
-    // 3. Add vorticity confinement with higher strength
+    // 1. Add vorticity confinement with higher strength
     // Increasing default value from 0.5f to 2.0f for more visible swirls
     addVorticityConfinement(vX0, vY0, vZ0, dt, size, m_vorticityStrength * 2.0f);
 
@@ -100,9 +48,7 @@ void FluidCube::update(float dt)
             }
         }
 
-    // 1. Diffuse velocity
-
-
+    // 2. Diffuse velocity
     #pragma omp parallel sections
         {
     #pragma omp section
@@ -122,12 +68,10 @@ void FluidCube::update(float dt)
         }
 
 
-    // 2. Project velocity
+    // 3. Project velocity
     project(vX0, vY0, vZ0, vX, vY, iter, size);
 
     // 4. Advect velocity
-
-
     #pragma omp parallel sections
         {
     #pragma omp section
@@ -150,6 +94,7 @@ void FluidCube::update(float dt)
     // 5. Project again
     project(vX, vY, vZ, vX0, vY0, iter, size);
 
+    // Clean the velocity value in v0
     empty_vel();
 
     addSource(density, density0);
@@ -160,13 +105,18 @@ void FluidCube::update(float dt)
     // 7. Advect density
     advect(0, density, density0, vX, vY, vZ, dt, size);
 
+    // Fade the density value in density: To avoid the inaccurate calculation's increasing density
+    densityFade(dt);
+
+    // Clean the density value in density0
     empty_den();
 
-    cout << getTotalDensity() << endl;
+    //cout << getTotalDensity() << endl;
 
-    // conserveDensity(density, initialDensity, size);
     uploadDensityToGPU();
 }
+
+
 void FluidCube::draw(Shader *shader)
 {
     // // For Voxel
@@ -175,6 +125,38 @@ void FluidCube::draw(Shader *shader)
     // For Ray Marchign
     drawVolume(shader);
 }
+
+
+void FluidCube::addSource(vector<float> x, vector<float> x0)
+{
+    for (int i = 0; i < totalCells; i++)
+    {
+        x[i] += dt * x0[i];
+    }
+}
+
+void FluidCube::densityFade(float dt)
+{
+    for (int i = 0; i < totalCells; i++)
+    {
+        density[i] *= (1 - 0.5*dt);
+    }
+}
+
+void FluidCube::empty_vel(){
+    for(int i = 0; i < vX0.size(); i++){
+        vX0[i] = 0.0f;
+        vY0[i] = 0.0f;
+        vZ0[i] = 0.0f;
+    }
+}
+
+void FluidCube::empty_den(){
+    for(int i = 0; i < density0.size(); i++){
+        density0[i] = 0.0f;
+    }
+}
+
 
 void FluidCube::init(int size, float diffuse, float viscosity){
     this->size = size;
@@ -201,7 +183,6 @@ void FluidCube::init(int size, float diffuse, float viscosity){
     initFullscreenQuad();
 
     // Inject Density and then upload it to GPU openGL
-    test();
     uploadDensityToGPU();
 }
 
@@ -427,44 +408,6 @@ void FluidCube::toggleWireframe()
 {
     m_wireframe = !m_wireframe;
 }
-
-
-// Below is for the test methods
-void FluidCube::test() {
-    // No initial density or velocity - clean slate
-    // This will make the simulation start with an empty cube
-    // Density and velocity will only be added when the user interacts with mouse
-
-    int center = size / 2;
-
-    // Just initialize the vortex field around the center for better interaction
-    // when the user does add density with mouse
-    float vortexRadius = size / 8.0f;
-    float vortexStrength = 3.0f;
-
-    for (int z = 0; z < size; z++) {
-        for (int y = 0; y < size/2; y++) {
-            for (int x = 0; x < size; x++) {
-                float dx = x - center;
-                float dz = z - center;
-                float dist = sqrt(dx*dx + dz*dz);
-
-                // Create rotation field but don't add any density
-                if (dist > 0.1f && dist < vortexRadius) {
-                    float factor = vortexStrength * (1.0f - dist/vortexRadius);
-
-                    // Add rotational velocity only
-                    vX[index(x, y, z)] += -dz * factor / (dist + 0.1f);
-                    vZ[index(x, y, z)] += dx * factor / (dist + 0.1f);
-
-                    // No density added
-                }
-            }
-        }
-    }
-}
-
-
 
 
 void FluidCube::visualizeVelocity() {

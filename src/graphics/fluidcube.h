@@ -56,7 +56,6 @@ public:
 
 private:
 
-    float initialDensity = -1.0f;
     // Below are the units for OpenGL rendering
     GLuint m_vao;
     GLuint m_vbo;
@@ -98,7 +97,6 @@ private:
 
     float m_vorticityStrength = 0.5f;  // Default vorticity strength
 
-
     // Some getters here only to reduce the difficulty of extracting data
     int index(int x, int y, int z);
 
@@ -108,11 +106,11 @@ private:
     // Some updates
     void uploadDensityToGPU();
 
-
+    // Handle the increasing density bug caused by inaccuate calculation
     void addSource(vector<float> x, vector<float> x0);
-
     void empty_vel();
     void empty_den();
+    void densityFade(float dt);
 
     // Some tests
     void test();
