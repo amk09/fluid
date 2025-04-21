@@ -25,6 +25,14 @@ An implementation of a 3D fluid simulator based on Jos Stam's [Stable Fluids](ht
 - Eigen for vector operations
 - CMake 3.10 or higher
 
+### Eigen
+
+After cloning the repository, run
+```
+git submodule update --init
+```
+to pull in the Eigen dependency
+
 ## Building the Project
 
 ```bash
