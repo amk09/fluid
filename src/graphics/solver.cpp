@@ -305,3 +305,86 @@ void circulateDensity(std::vector<float> &density, int N, float dt, float rate) 
         density[i] = std::max(0.0f, std::min(density[i], 1.0f));
     }
 }
+
+void addVorticityConfinement(std::vector<float> &vX, std::vector<float> &vY,
+                             std::vector<float> &vZ, float dt, int N, float vorticityStrength) {
+    // Temporary arrays for curl (vorticity) calculation
+    std::vector<float> curlX(N*N*N, 0.0f);
+    std::vector<float> curlY(N*N*N, 0.0f);
+    std::vector<float> curlZ(N*N*N, 0.0f);
+    std::vector<float> curlMagnitude(N*N*N, 0.0f);
+
+// Step 1: Calculate curl (∇ × v) at each cell
+#pragma omp parallel for collapse(3)
+    for (int k = 1; k < N-1; k++) {
+        for (int j = 1; j < N-1; j++) {
+            for (int i = 1; i < N-1; i++) {
+                int idx = IX(i, j, k, N);
+
+                // Calculate partial derivatives using central differences
+                float dvz_dy = (vZ[IX(i, j+1, k, N)] - vZ[IX(i, j-1, k, N)]) * 0.5f;
+                float dvy_dz = (vY[IX(i, j, k+1, N)] - vY[IX(i, j, k-1, N)]) * 0.5f;
+
+                float dvx_dz = (vX[IX(i, j, k+1, N)] - vX[IX(i, j, k-1, N)]) * 0.5f;
+                float dvz_dx = (vZ[IX(i+1, j, k, N)] - vZ[IX(i-1, j, k, N)]) * 0.5f;
+
+                float dvy_dx = (vY[IX(i+1, j, k, N)] - vY[IX(i-1, j, k, N)]) * 0.5f;
+                float dvx_dy = (vX[IX(i, j+1, k, N)] - vX[IX(i, j-1, k, N)]) * 0.5f;
+
+                // Curl components (vorticity)
+                curlX[idx] = dvz_dy - dvy_dz;
+                curlY[idx] = dvx_dz - dvz_dx;
+                curlZ[idx] = dvy_dx - dvx_dy;
+
+                // Calculate curl magnitude
+                curlMagnitude[idx] = sqrtf(
+                    curlX[idx] * curlX[idx] +
+                    curlY[idx] * curlY[idx] +
+                    curlZ[idx] * curlZ[idx]
+                    );
+            }
+        }
+    }
+
+// Step 2: Calculate normalized vorticity confinement force: N × ω
+// N is the normalized gradient of the curl magnitude
+#pragma omp parallel for collapse(3)
+    for (int k = 1; k < N-1; k++) {
+        for (int j = 1; j < N-1; j++) {
+            for (int i = 1; i < N-1; i++) {
+                int idx = IX(i, j, k, N);
+
+                // Skip cells with very small curl
+                if (curlMagnitude[idx] < 0.000001f) continue;
+
+                // Calculate gradient of curl magnitude using central differences
+                float dx = (curlMagnitude[IX(i+1, j, k, N)] - curlMagnitude[IX(i-1, j, k, N)]) * 0.5f;
+                float dy = (curlMagnitude[IX(i, j+1, k, N)] - curlMagnitude[IX(i, j-1, k, N)]) * 0.5f;
+                float dz = (curlMagnitude[IX(i, j, k+1, N)] - curlMagnitude[IX(i, j, k-1, N)]) * 0.5f;
+
+                // Normalize gradient
+                float length = sqrtf(dx*dx + dy*dy + dz*dz);
+                if (length > 0.000001f) {
+                    dx /= length;
+                    dy /= length;
+                    dz /= length;
+
+                    // Calculate force as cross product: N × ω (normalized gradient × curl)
+                    float forceX = (dy * curlZ[idx] - dz * curlY[idx]) * vorticityStrength;
+                    float forceY = (dz * curlX[idx] - dx * curlZ[idx]) * vorticityStrength;
+                    float forceZ = (dx * curlY[idx] - dy * curlX[idx]) * vorticityStrength;
+
+                    // Apply force scaled by time step
+                    vX[idx] += forceX * dt;
+                    vY[idx] += forceY * dt;
+                    vZ[idx] += forceZ * dt;
+                }
+            }
+        }
+    }
+
+    // Apply boundary conditions
+    set_bnd(1, vX, N);
+    set_bnd(2, vY, N);
+    set_bnd(3, vZ, N);
+}

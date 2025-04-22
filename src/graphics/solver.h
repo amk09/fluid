@@ -36,4 +36,7 @@ void addFountainForce(std::vector<float> &velocityX, std::vector<float> &velocit
 
 void circulateDensity(std::vector<float> &density, int N, float dt, float rate);
 
+void addVorticityConfinement(std::vector<float> &vX, std::vector<float> &vY,
+    std::vector<float> &vZ, float dt, int N, float vorticityStrength);
+
 #endif // SOLVER_H

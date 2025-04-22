@@ -10,6 +10,14 @@ using namespace std;
 
 class Shader;
 
+struct SolidObject {
+    enum Type { CUBE, SPHERE };
+    Type type;
+    Eigen::Vector3f position;
+    Eigen::Vector3f size;      // For cube: half-extents
+    float radius;              // For sphere
+};
+
 class FluidCube
 {
 public:
@@ -41,6 +49,25 @@ public:
     //debugger
     void visualizeVelocity();
     float getTotalDensity();
+
+
+    void drawShellOnly(Shader *shader);
+    void uploadCustomDensityToGPU(const std::vector<float>& customDensity);
+    void setColorMap(int colorType);
+    int getColorMap() const;
+    void setRenderMode(int mode);
+    int getRenderMode() const;
+
+    void setVorticityStrength(float strength);
+    float getVorticityStrength() const;
+
+
+    //boundary handleing
+    void addSolidCube(const Eigen::Vector3f& position, const Eigen::Vector3f& size);
+    void addSolidSphere(const Eigen::Vector3f& position, float radius);
+
+    void clearSolidObjects();
+
 private:
 
     float initialDensity = -1.0f;
@@ -59,6 +86,18 @@ private:
     void drawVoxel(Shader* shader);
     void initFullscreenQuad();
     void drawVolume(Shader* shader);
+
+
+
+    std::vector<SolidObject> m_solidObjects;
+    std::vector<bool> m_solidCells; // Flag for solid cells
+
+    void updateSolidCells();
+    bool isInsideSolid(int i, int j, int k) const;
+
+    Eigen::Vector3f getSolidNormal(int i, int j, int k) const; //same as get_norm
+
+
 
     // Below are the parameters for Stable Fluids
     int size; // 'N' in the paper and the rest of codes, how many grids you want to divide the cube edges
@@ -79,15 +118,22 @@ private:
 
     // Below are the main functions should be done in Stable Fluids
     int iter = 1; // This is the key parameter to solve stable formula (20 in the paper; 10 in the video; 4 in the website)
-
+    float m_vorticityStrength = 0.5f;
     // Some getters here only to reduce the difficulty of extracting data
-    int index(int x, int y, int z){
-        return (x) + (y) * size + (z) * size * size;
-    }
+    int index(int x, int y, int z);
+
+    int m_colorMapType = 0;  // 0: default, 1: blue, 2: purple, 3: cyan-yellow, 4: orange-grey
+    int m_renderMode = 0;
 
     // Some updates
     void uploadDensityToGPU();
-
+    
+     // Handle the increasing density bug caused by inaccuate calculation
+  
+    void addSource(vector<float> x, vector<float> x0);
+    void empty_vel();
+    void empty_den();
+    void densityFade(float dt);
     // Some tests
     void test();
 };

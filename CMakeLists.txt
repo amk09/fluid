@@ -39,6 +39,7 @@ add_executable(${PROJECT_NAME}
     src/graphics/shape.cpp
     src/graphics/solver.cpp
     src/graphics/vectorfield.cpp
+    src/graphics/solidboundary.cpp
 
     src/mainwindow.h
     src/simulation.h
@@ -50,6 +51,7 @@ add_executable(${PROJECT_NAME}
     src/graphics/shape.h
     src/graphics/solver.h
     src/graphics/vectorfield.h
+    src/graphics/solidboundary.h
 
     util/tiny_obj_loader.h
     util/unsupportedeigenthing/OpenGLSupport
