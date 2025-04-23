@@ -11,7 +11,8 @@ void Simulation::init()
 {
     // Initialize the fluid with much lower diffusion and viscosity parameters
     // This will make the fluid less likely to spread out horizontally
-    fluidCube.init(32, 0.00001, 0.00001);
+    gridSize = 48;
+    fluidCube.init(gridSize, 0.00001, 0.00001);
 }
 
 
@@ -25,7 +26,6 @@ void Simulation::handleMousePress(int x, int y, int width, int height)
     float normalizedY = 1.0f - static_cast<float>(y) / height;
 
     // Map to fluid grid coordinates
-    int gridSize = 32; // Match the size used in init()
     float gridX = normalizedX * gridSize;
     float gridY = normalizedY * gridSize;
     int gridZ = gridSize / 2; // Middle of the grid
@@ -37,9 +37,8 @@ void Simulation::handleMousePress(int x, int y, int width, int height)
 
 void Simulation::addDensityWithGaussian(float centerX, float centerY, float centerZ, float amount, float sigma)
 {
-    int gridSize = 32;
     int radius = static_cast<int>(sigma * 2.0f);
-
+    #pragma omp parallel for collapse(3)
     for (int dz = -radius; dz <= radius; dz++) {
         for (int dy = -radius; dy <= radius; dy++) {
             for (int dx = -radius; dx <= radius; dx++) {
@@ -79,7 +78,6 @@ void Simulation::handleMouseMove(int x, int y, int width, int height)
     float normalizedY = 1.0f - static_cast<float>(y) / height;
 
     // Map to fluid grid coordinates
-    int gridSize = 32; // Same as in init()
     float gridX = normalizedX * gridSize;
     float gridY = normalizedY * gridSize;
     int gridZ = gridSize / 2; // Middle of the grid
@@ -97,9 +95,8 @@ void Simulation::handleMouseMove(int x, int y, int width, int height)
 void Simulation::addVelocityWithGaussian(float centerX, float centerY, float centerZ,
                                          float velX, float velY, float velZ, float sigma)
 {
-    int gridSize = 32;
     int radius = static_cast<int>(sigma * 1.8f);
-
+    #pragma omp parallel for collapse(3)
     for (int dz = -radius; dz <= radius; dz++) {
         for (int dy = -radius; dy <= radius; dy++) {
             for (int dx = -radius; dx <= radius; dx++) {

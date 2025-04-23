@@ -10,8 +10,6 @@ class Simulation
 {
 public:
 
-
-
     Simulation();
 
     void init();
@@ -39,7 +37,8 @@ private:
     Shape m_ground;
     void initGround();
 
-
+    // Grid Size
+    int gridSize;
 
     // Last mouse position
     bool m_mousePressed;
