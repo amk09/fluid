@@ -80,7 +80,11 @@ Solid Objects: Add static obstacles like cubes and spheres
 Multiple Fluid Types: Simulate different fluid types with varying properties
 Density Fading: Realistic dissipation over time
 
+## Tried Extensions But Failed
+There are some tried extensions but somehow cannot work out:
 
+ - We tried assigning a dyeColor to each cell and uploading it as a second 3D texture alongside densityTex to achieve multicolor fluid rendering. While the effect looked great, the performance cost was too high—uploading and sampling two large 3D textures per frame significantly reduced the frame rate, even at 48×48×48 resolution. We ultimately dropped this approach and may explore lighter alternatives.
+ 
 ## Credits
 Based on Jos Stam's "Stable Fluids" paper
 Implementation by [Unstable Fruits Team]
