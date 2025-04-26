@@ -137,5 +137,17 @@ private:
     // Some tests
     void test();
 };
+inline int FluidCube::getColorMap() const { return m_colorMapType; }
 
+inline void FluidCube::setRenderMode(int mode) { m_renderMode = mode; }
+
+inline int FluidCube::getRenderMode() const { return m_renderMode; }
+
+inline void FluidCube::setVorticityStrength(float strength) { m_vorticityStrength = strength; }
+
+inline float FluidCube::getVorticityStrength() const { return m_vorticityStrength; }
+
+inline int FluidCube::index(int x, int y, int z){
+    return (x) + (y) * size + (z) * size * size;
+}
 #endif // FLUIDCUBE_H
