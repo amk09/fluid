@@ -62,11 +62,7 @@ public:
     float getVorticityStrength() const;
 
 
-    //boundary handleing
-    void addSolidCube(const Eigen::Vector3f& position, const Eigen::Vector3f& size);
-    void addSolidSphere(const Eigen::Vector3f& position, float radius);
 
-    void clearSolidObjects();
 
 private:
 
@@ -104,6 +100,8 @@ private:
     float dt; // Time Step, do we really need this? Since we update it in our tick with a fixed time step? I decieded not to use it at start.
     float diff; // The parameter controls the diffuse // For Density to Spread Out in the Fluid Cube
     float visc; // Thickness of the fluids // For Velocity to Spread Out in the Fluid Cube
+    int totalCells;
+
 
     // Although they are written in Previous and Current versions.
     // Actually they are just stated to swap to use instead of a really previous or current state. （eg. temp? value)
@@ -117,7 +115,7 @@ private:
     vector<float> vZ; // Current z-direction velocity
 
     // Below are the main functions should be done in Stable Fluids
-    int iter = 1; // This is the key parameter to solve stable formula (20 in the paper; 10 in the video; 4 in the website)
+    int iter = 4; // This is the key parameter to solve stable formula (20 in the paper; 10 in the video; 4 in the website)
     float m_vorticityStrength = 0.5f;
     // Some getters here only to reduce the difficulty of extracting data
     int index(int x, int y, int z);

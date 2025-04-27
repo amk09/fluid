@@ -135,6 +135,51 @@ void FluidCube::draw(Shader *shader)
     drawVolume(shader);
 }
 
+
+void FluidCube::addSource(vector<float> x, vector<float> x0)
+{
+    for (int i = 0; i < totalCells; i++)
+    {
+        x[i] += dt * x0[i];
+    }
+}
+
+void FluidCube::densityFade(float dt)
+{
+    for (int i = 0; i < totalCells; i++)
+    {
+        density[i] *= (1 - 0.5*dt);
+    }
+}
+
+void FluidCube::empty_vel(){
+    for(int i = 0; i < vX0.size(); i++){
+        vX0[i] = 0.0f;
+        vY0[i] = 0.0f;
+        vZ0[i] = 0.0f;
+    }
+}
+
+void FluidCube::empty_den(){
+    for(int i = 0; i < density0.size(); i++){
+        density0[i] = 0.0f;
+    }
+}
+
+
+
+void FluidCube::draw(Shader *shader)
+{
+    // // For Voxel
+    // drawVoxel(shader);
+
+    // For Ray Marchign
+    drawVolume(shader);
+}
+
+
+
+
 void FluidCube::init(int size, float diffuse, float viscosity){
     this->size = size;
     this->diff = diffuse;
@@ -162,15 +207,30 @@ void FluidCube::init(int size, float diffuse, float viscosity){
     initFullscreenQuad();
 
     // Inject Density and then upload it to GPU openGL
-    test();
     uploadDensityToGPU();
 }
 
-void FluidCube::addDensity(int x, int y, int z, float amount){
-    // The reason why we clamp here is just to make sure density is always between 0 to 1
-    // Clamp after density
+void FluidCube::addDensity(int x, int y, int z, float amount) {
+    // Clamp coordinates to valid range
+    x = std::max(1, std::min(x, size-2));
+    y = std::max(1, std::min(y, size-2));
+    z = std::max(1, std::min(z, size-2));
+
     int idx = index(x, y, z);
+
+    // Add to center cell
     density[idx] = std::clamp(density[idx] + amount, 0.0f, 1.0f);
+
+    // Add small amounts to neighboring cells for smoothness
+    float neighborAmount = amount * 0.2f;
+
+    // Add to 6 direct neighbors
+    density[index(x-1, y, z)] = std::clamp(density[index(x-1, y, z)] + neighborAmount, 0.0f, 1.0f);
+    density[index(x+1, y, z)] = std::clamp(density[index(x+1, y, z)] + neighborAmount, 0.0f, 1.0f);
+    density[index(x, y-1, z)] = std::clamp(density[index(x, y-1, z)] + neighborAmount, 0.0f, 1.0f);
+    density[index(x, y+1, z)] = std::clamp(density[index(x, y+1, z)] + neighborAmount, 0.0f, 1.0f);
+    density[index(x, y, z-1)] = std::clamp(density[index(x, y, z-1)] + neighborAmount, 0.0f, 1.0f);
+    density[index(x, y, z+1)] = std::clamp(density[index(x, y, z+1)] + neighborAmount, 0.0f, 1.0f);
 }
 
 void FluidCube::addVelocity(int x, int y, int z, float amountX, float amountY, float amountZ){
@@ -228,7 +288,7 @@ void FluidCube::uploadDensityToGPU() {
         minDensity = std::min(minDensity, density[i]);
         maxDensity = std::max(maxDensity, density[i]);
     }
-    
+
     // Apply contrast enhancement
     float range = maxDensity - minDensity;
     if (range > 0.01f) {  // Only if there's actual variation
@@ -264,6 +324,7 @@ void FluidCube::uploadDensityToGPU() {
 
     glBindTexture(GL_TEXTURE_3D, 0);
 }
+
 
 void FluidCube::drawVolume(Shader* shader){
      // For shell-only rendering (as an option)

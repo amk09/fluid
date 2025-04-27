@@ -11,10 +11,10 @@ void clear(std::vector<bool>& solidCells, std::vector<SolidObject>& objects);
 
 void updateSolidCells(std::vector<bool>& solidCells, const std::vector<SolidObject>& objects, int size);
 
-bool isInside(int i, int j, int k);
+bool isInside(int i, int j, int k, int m_size, std::vector<bool>& solidCells);
 Eigen::Vector3f getNormal(int i, int j, int k, int m_size);
 
-void applyBoundaries(int b, std::vector<float>& field);
+// void applyBoundaries(int b, std::vector<float>& field);
 
 inline int IX(int i, int j, int k, int m_size)  {
     return i + j * m_size + k * m_size * m_size;
@@ -29,6 +29,22 @@ inline bool inBounds(int i, int j, int k, int m_size)  {
 inline int index(int x, int y, int z, int size) {
     return (x) + (y) * size + (z) * size * size;
 }
+
+// Direction bit flags
+const int DIR_NONE = 0;
+const int DIR_EAST = 1;  // 00001
+const int DIR_NORTH = 2; // 00010
+const int DIR_WEST = 4;  // 00100
+const int DIR_SOUTH = 8; // 01000
+const int DIR_CENTER = 16; // 10000
+
+struct BoundaryOffset {
+    int dx, dy, dz;    // Direction to sample from
+    float xMultiplier; // For velocity reflection
+    float yMultiplier; // For velocity reflection 
+    float zMultiplier; // For velocity reflection
+};
+
 
 #endif // SOLIDBOUNDARY_H
 
