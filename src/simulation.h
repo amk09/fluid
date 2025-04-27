@@ -23,10 +23,11 @@ public:
     // Add mouse event handlers
     void handleMousePress(int x, int y, int width, int height);
     void handleMouseMove(int x, int y, int width, int height);
-
+    void clearAllFluids();
 
     // Below are our project parameters
     FluidCube fluidCube;
+
 
 
 private:
@@ -48,4 +49,7 @@ private:
     void addDensityWithGaussian(float centerX, float centerY, float centerZ, float amount, float sigma);
     void addVelocityWithGaussian(float centerX, float centerY, float centerZ,
                                  float velX, float velY, float velZ, float sigma);
+
+
+
 };

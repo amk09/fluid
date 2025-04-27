@@ -160,10 +160,10 @@ void GLWidget::wheelEvent(QWheelEvent *event)
     m_camera.zoom(zoom);
 }
 
+
 void GLWidget::keyPressEvent(QKeyEvent *event)
 {
     if (event->isAutoRepeat()) return;
-
     switch (event->key())
     {
     case Qt::Key_W: m_forward  += SPEED; break;
@@ -174,44 +174,75 @@ void GLWidget::keyPressEvent(QKeyEvent *event)
     case Qt::Key_R: m_vertical += SPEED; break;
     case Qt::Key_C: m_camera.toggleIsOrbiting(); break;
     case Qt::Key_T: m_sim.toggleWire(); break;
-
     // Added color and rendering mode switch keys
     case Qt::Key_1:
         m_sim.fluidCube.setColorMap(1);
+        std::cout << "Cyan-blue" << std::endl;
         break;
     case Qt::Key_2:
         m_sim.fluidCube.setColorMap(2);
+        std::cout << "Purple Electric " << std::endl;
         break;
     case Qt::Key_3:
         m_sim.fluidCube.setColorMap(3);
+        std::cout << "Cyan-yellow" << std::endl;
         break;
     case Qt::Key_4:
         m_sim.fluidCube.setColorMap(4);
+        std::cout << "Orange-grey" << std::endl;
+        break;
+    case Qt::Key_5:
+        m_sim.fluidCube.setColorMap(5); // New fire gradient
+        std::cout << "Fire gradient" << std::endl;
+        break;
+    case Qt::Key_6:
+        m_sim.fluidCube.setColorMap(6); // New ocean gradient
+        std::cout << "Ocean gradient" << std::endl;
+        break;
+    case Qt::Key_7:
+        m_sim.fluidCube.setColorMap(7); // New plasma gradient
+        std::cout << "Plasma gradient" << std::endl;
+        break;
+    case Qt::Key_8:
+        m_sim.fluidCube.setColorMap(8); // New Rainbow gradient
+        std::cout << "Rainbow" << std::endl;
+        break;
+    case Qt::Key_9:
+        m_sim.fluidCube.setColorMap(9); // New Aurora gradient
+        std::cout << "Aurora" << std::endl;
+        break;
+    case Qt::Key_L:
+        m_sim.fluidCube.setColorMap(10); // New Lava gradient
+        std::cout << "Lava" << std::endl;
         break;
     case Qt::Key_0:
         m_sim.fluidCube.setColorMap(0);
+        std::cout << "Default Water" << std::endl;
         break;
-
     case Qt::Key_M:
         // Toggle shell rendering
         m_sim.fluidCube.setRenderMode(
             m_sim.fluidCube.getRenderMode() == 0 ? 1 : 0);
         std::cout << "Render Mode: " << (m_sim.fluidCube.getRenderMode() == 0 ? "Volume" : "Shell") << std::endl;
         break;
-
     // Add vorticity strength control
     case Qt::Key_V: // Increase vorticity
         m_sim.fluidCube.setVorticityStrength(
             m_sim.fluidCube.getVorticityStrength() + 0.2f);
         std::cout << "Vorticity Strength: " << m_sim.fluidCube.getVorticityStrength() << std::endl;
         break;
-
     case Qt::Key_B: // Decrease vorticity
         m_sim.fluidCube.setVorticityStrength(
             std::max(0.0f, m_sim.fluidCube.getVorticityStrength() - 0.2f));
         std::cout << "Vorticity Strength: " << m_sim.fluidCube.getVorticityStrength() << std::endl;
         break;
-
+    // Add clear fluid shortcuts
+    case Qt::Key_Space:
+    case Qt::Key_Delete:
+    case Qt::Key_Return:
+        m_sim.clearAllFluids();
+        std::cout << "Cleared all fluids" << std::endl;
+        break;
     case Qt::Key_Escape: QApplication::quit();
     }
 }

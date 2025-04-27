@@ -34,11 +34,13 @@ void Simulation::handleMousePress(int x, int y, int width, int height)
     addDensityWithGaussian(gridX, gridY, gridZ, 8.0f, 1.5f);
 }
 
-
 void Simulation::addDensityWithGaussian(float centerX, float centerY, float centerZ, float amount, float sigma)
 {
+    // Get current color type from fluidCube
+    int currentColorType = fluidCube.getCurrentColorType();
+
     int radius = static_cast<int>(sigma * 2.0f);
-    #pragma omp parallel for collapse(3)
+#pragma omp parallel for collapse(3)
     for (int dz = -radius; dz <= radius; dz++) {
         for (int dy = -radius; dy <= radius; dy++) {
             for (int dx = -radius; dx <= radius; dx++) {
@@ -54,13 +56,19 @@ void Simulation::addDensityWithGaussian(float centerX, float centerY, float cent
                     float distSq = dx*dx + dy*dy + dz*dz;
                     float weight = exp(-distSq / (1.5f * sigma * sigma));
 
-                    // Add weighted density
-                    fluidCube.addDensity(nx, ny, nz, amount * weight* 0.7f);
+                    // Add weighted density with color
+                    fluidCube.addDensityWithColor(nx, ny, nz, amount * weight * 0.7f, currentColorType);
                 }
             }
         }
     }
 }
+
+// Add method to clear all fluids
+void Simulation::clearAllFluids() {
+    fluidCube.clearAllFluids();
+}
+
 
 
 void Simulation::handleMouseMove(int x, int y, int width, int height)
@@ -90,7 +98,6 @@ void Simulation::handleMouseMove(int x, int y, int width, int height)
     m_lastMouseX = x;
     m_lastMouseY = y;
 }
-
 
 void Simulation::addVelocityWithGaussian(float centerX, float centerY, float centerZ,
                                          float velX, float velY, float velZ, float sigma)
