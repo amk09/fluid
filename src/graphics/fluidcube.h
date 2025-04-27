@@ -61,7 +61,9 @@ public:
     void setVorticityStrength(float strength);
     float getVorticityStrength() const;
 
-
+    void addSolidCube(const Eigen::Vector3f& position, const Eigen::Vector3f& dimensions);
+    void addSolidSphere(const Eigen::Vector3f& position, float radius);
+    void clearSolids();
 
 
 private:
@@ -84,14 +86,17 @@ private:
     void drawVolume(Shader* shader);
 
 
+    std::vector<BoundaryOffset> m_velocityLUT;
+    // std::vector<BoundaryOffset> m_pressureLUT = createPressureLUT();
+    std::vector<BoundaryOffset> m_densityLUT;
 
     std::vector<SolidObject> m_solidObjects;
     std::vector<bool> m_solidCells; // Flag for solid cells
 
-    void updateSolidCells();
-    bool isInsideSolid(int i, int j, int k) const;
+    // void updateSolidCells();
+    // bool isInsideSolid(int i, int j, int k) const;
 
-    Eigen::Vector3f getSolidNormal(int i, int j, int k) const; //same as get_norm
+    // Eigen::Vector3f getSolidNormal(int i, int j, int k) const; //same as get_norm
 
 
 

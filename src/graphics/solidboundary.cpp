@@ -31,13 +31,53 @@ void clear(std::vector<bool>& solidCells, std::vector<SolidObject>& objects) {
 //below is still under development
 
 void updateSolidCells(std::vector<bool>& solidCells, const std::vector<SolidObject>& objects, int size) {
+    // First, clear all solid cells
     std::fill(solidCells.begin(), solidCells.end(), false);
-    for(int k =0; k<size; k++){
-        for(int j =0; j<size; j++){
-            for(int i =0; i<size; i++){
-                int idx = index(i, j, k, size);
-                if(isInside(i, j, k, size, solidCells)){
-                    solidCells[idx] = true;
+    
+    // Then, mark cells for each object
+    for (const auto& obj : objects) {
+        if (obj.type == SolidObject::CUBE) {
+            // Handle cube
+            Eigen::Vector3f halfSize = obj.size * 0.5f;
+            int minX = std::max(0, static_cast<int>(obj.position.x() - halfSize.x()));
+            int maxX = std::min(size-1, static_cast<int>(obj.position.x() + halfSize.x()));
+            int minY = std::max(0, static_cast<int>(obj.position.y() - halfSize.y()));
+            int maxY = std::min(size-1, static_cast<int>(obj.position.y() + halfSize.y()));
+            int minZ = std::max(0, static_cast<int>(obj.position.z() - halfSize.z()));
+            int maxZ = std::min(size-1, static_cast<int>(obj.position.z() + halfSize.z()));
+            
+            for (int k = minZ; k <= maxZ; k++) {
+                for (int j = minY; j <= maxY; j++) {
+                    for (int i = minX; i <= maxX; i++) {
+                        solidCells[IX(i, j, k, size)] = true;
+                    }
+                }
+            }
+        } 
+        else if (obj.type == SolidObject::SPHERE) {
+            // Handle sphere
+            float radiusSq = obj.radius * obj.radius;
+            int radius = static_cast<int>(std::ceil(obj.radius));
+            
+            int minX = std::max(0, static_cast<int>(obj.position.x() - radius));
+            int maxX = std::min(size-1, static_cast<int>(obj.position.x() + radius));
+            int minY = std::max(0, static_cast<int>(obj.position.y() - radius));
+            int maxY = std::min(size-1, static_cast<int>(obj.position.y() + radius));
+            int minZ = std::max(0, static_cast<int>(obj.position.z() - radius));
+            int maxZ = std::min(size-1, static_cast<int>(obj.position.z() + radius));
+            
+            for (int k = minZ; k <= maxZ; k++) {
+                for (int j = minY; j <= maxY; j++) {
+                    for (int i = minX; i <= maxX; i++) {
+                        float dx = i - obj.position.x();
+                        float dy = j - obj.position.y();
+                        float dz = k - obj.position.z();
+                        float distSq = dx*dx + dy*dy + dz*dz;
+                        
+                        if (distSq <= radiusSq) {
+                            solidCells[IX(i, j, k, size)] = true;
+                        }
+                    }
                 }
             }
         }

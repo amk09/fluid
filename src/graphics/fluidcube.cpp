@@ -32,13 +32,38 @@ FluidCube::FluidCube()
 {
 }
 
+
+
+void FluidCube::addSolidCube(const Eigen::Vector3f& position, const Eigen::Vector3f& dimensions) {
+    std::vector<SolidObject> objects;  // Temporary object list
+    addCube(position, dimensions, m_solidCells, objects, size);
+}
+
+void FluidCube::addSolidSphere(const Eigen::Vector3f& position, float radius) {
+    std::vector<SolidObject> objects;  // Temporary object list
+    addSphere(position, radius, m_solidCells, objects, size);
+}
+
+void FluidCube::clearSolids() {
+    std::vector<SolidObject> objects;  // Temporary empty object list
+    clear(m_solidCells, objects);
+}
+
+
+
+
+
 void FluidCube::update(float dt)
 {   
+
+    std::vector<int> boundaryTypes;
+    updateBoundaryMask(m_solidCells, boundaryTypes, size);
 
      // 1. Add vorticity confinement with higher strength
     // Increasing default value from 0.5f to 2.0f for more visible swirls
     addVorticityConfinement(vX0, vY0, vZ0, dt, size, m_vorticityStrength * 2.0f);
 
+    
 
     #pragma omp parallel sections
         {
@@ -78,8 +103,12 @@ void FluidCube::update(float dt)
         }
 
 
+    applyVelocityBoundaries(vX0, vY0, vZ0, m_solidCells, boundaryTypes, m_velocityLUT, size);
+
     // 3. Project velocity
     project(vX0, vY0, vZ0, vX, vY, iter, size);
+    
+    applyVelocityBoundaries(vX0, vY0, vZ0, m_solidCells, boundaryTypes, m_velocityLUT, size);
 
     // 4. Advect velocity
     #pragma omp parallel sections
@@ -101,8 +130,12 @@ void FluidCube::update(float dt)
         }
 
 
+    applyVelocityBoundaries(vX0, vY0, vZ0, m_solidCells, boundaryTypes, m_velocityLUT, size);
+
     // 5. Project again
     project(vX, vY, vZ, vX0, vY0, iter, size);
+
+    applyVelocityBoundaries(vX0, vY0, vZ0, m_solidCells, boundaryTypes, m_velocityLUT, size);
 
     // Clean the velocity value in v0
     empty_vel();
@@ -112,8 +145,13 @@ void FluidCube::update(float dt)
     // 6. Diffuse density
     diffuse_density(0, density0, density, diff, dt, iter, size);
 
+    applyDensityBoundaries(density, m_solidCells, boundaryTypes, m_densityLUT, size);
+
     // 7. Advect density
     advect(0, density, density0, vX, vY, vZ, dt, size);
+
+    applyDensityBoundaries(density, m_solidCells, boundaryTypes, m_densityLUT, size);
+
 
     // Fade the density value in density: To avoid the inaccurate calculation's increasing density
     densityFade(dt);
@@ -131,11 +169,11 @@ void FluidCube::draw(Shader *shader)
     // // For Voxel
     // drawVoxel(shader);
 
-    // For Ray Marchign
+    // For Ray Marching
     drawVolume(shader);
 }
 
-
+/*Helper for updates in 3D stable fluids way*/
 void FluidCube::addSource(vector<float> x, vector<float> x0)
 {
     for (int i = 0; i < totalCells; i++)
@@ -201,6 +239,24 @@ void FluidCube::init(int size, float diffuse, float viscosity){
 
     vZ0.resize(totalCells, 0.0f);
     vZ.resize(totalCells, 0.0f);
+
+    /* Start for solid initialization */
+    m_solidCells.resize(totalCells, false);
+    
+    // Add a cube in the center
+    float cubeSize = size / 4.0f;  // Make cube 1/4 the size of the domain
+    Eigen::Vector3f center(size/2, size/2, size/2);  // Center of the domain
+    Eigen::Vector3f dimensions(cubeSize, cubeSize, cubeSize);
+    addSolidCube(center, dimensions);
+
+    //look-up table for velocity
+    m_velocityLUT = createVelocityLUT();
+    //loop-up table for velocity
+    m_densityLUT = createDensityLUT();
+
+    //***paper also has pressure but we can see if we need it later
+
+    /* End for solid initialization */
 
     // // Call Voxel to Build
     // initVoxelGeometry();
