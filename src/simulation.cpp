@@ -12,7 +12,7 @@ void Simulation::init()
 {
     // Initialize the fluid with much lower diffusion and viscosity parameters
     // This will make the fluid less likely to spread out horizontally
-    gridSize = 32;
+    gridSize = 35;
     fluidCube.init(gridSize, 0.00001, 0.00001);
 }
 
@@ -132,7 +132,7 @@ void Simulation::addVelocityWithGaussian(float centerX, float centerY, float cen
 
 void Simulation::addObstacle() {
     int size = fluidCube.getSize();
-    addObstacleCube(0, 5, 0, 11, 6, 11, size);
+    addObstacleCube(5, 5, 5, 12, 10, 12, size);
 }
 
 void Simulation::clearObstacle() {

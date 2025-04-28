@@ -43,6 +43,6 @@ void addObstacleCube(int x0, int y0, int z0, int w, int h, int d, int size) {
 // Set density values inside obstacles to zero
 void clearDensityInsideObstacles(std::vector<float>& density) {
     for (int idx : g_obstacleCells) {
-        density[idx] = 0.0f;
+        density[idx] = 1.0f;
     }
 }
