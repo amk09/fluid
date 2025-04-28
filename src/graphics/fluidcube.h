@@ -59,6 +59,7 @@ public:
     // Get current color type
     int getCurrentColorType() const { return m_colorMapType; }
     int getSize() const {return size;}
+    std::vector<float>& getDensity() { return density; }
 
 private:
     // Below are the units for OpenGL rendering

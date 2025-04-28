@@ -136,7 +136,7 @@ void Simulation::addObstacle() {
 }
 
 void Simulation::clearObstacle() {
-    clearObstacles();
+    clearObstacles(fluidCube.getDensity());
 }
 
 void Simulation::update(double seconds)

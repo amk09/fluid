@@ -416,7 +416,7 @@ void FluidCube::update(float dt)
     densityFade(dt);
 
     // Make Sure Obstacle's Density is 0.0
-    clearDensityInsideObstacles(density);
+    densityInsideObstacles(density);
 
     // Clean the density value in density0
     empty_den();

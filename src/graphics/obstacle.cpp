@@ -16,7 +16,14 @@ void initObstacleMap(int totalCells) {
 }
 
 // Clear all obstacles by resetting to 0 and clearing recorded obstacle cells
-void clearObstacles() {
+void clearObstacles(std::vector<float>& density) {
+
+    for (int idx : g_obstacleCells) {
+        if (idx >= 0 && idx < density.size()) {
+            density[idx] = 0.0f;
+        }
+    }
+
     std::fill(g_obstacle.begin(), g_obstacle.end(), 0);
     g_obstacleCells.clear();
 }
@@ -40,8 +47,8 @@ void addObstacleCube(int x0, int y0, int z0, int w, int h, int d, int size) {
     }
 }
 
-// Set density values inside obstacles to zero
-void clearDensityInsideObstacles(std::vector<float>& density) {
+// Keep the density of the Obstacle
+void densityInsideObstacles(std::vector<float>& density) {
     for (int idx : g_obstacleCells) {
         density[idx] = 1.0f;
     }
