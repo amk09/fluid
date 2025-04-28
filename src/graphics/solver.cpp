@@ -127,6 +127,7 @@ void project(vector<float> &velocityX, vector<float> &velocityY, vector<float> &
 //For scalar fields, values at the boundary are copied from adjacent cells.
 void set_bnd(int b, vector<float> &dataWrittenTo, int N){
 
+    // New
     if (!g_obstacle.empty()) {
         for (int k = 1; k < N-1; k++) {
             for (int j = 1; j < N-1; j++) {
