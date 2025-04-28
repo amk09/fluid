@@ -16,8 +16,7 @@ void Simulation::init()
     fluidCube.init(gridSize, 0.00001, 0.00001);
 }
 
-void Simulation::handleMousePress(int x, int y, int width, int height)
-{
+void Simulation::handleMousePress(int x, int y, int width, int height) {
     m_lastMouseX = x;
     m_lastMouseY = y;
 
@@ -30,12 +29,17 @@ void Simulation::handleMousePress(int x, int y, int width, int height)
     float gridY = normalizedY * gridSize;
     int gridZ = gridSize / 2; // Middle of the grid
 
+    // Get current color type explicitly to ensure it's being used
+    int currentColorType = fluidCube.getCurrentColorType();
+
+    // Debug output to verify color type
+    std::cout << "Adding fluid with color type: " << currentColorType << std::endl;
+
     // Add density with Gaussian distribution for smoother effect
     addDensityWithGaussian(gridX, gridY, gridZ, 8.0f, 1.5f);
 }
 
-void Simulation::addDensityWithGaussian(float centerX, float centerY, float centerZ, float amount, float sigma)
-{
+void Simulation::addDensityWithGaussian(float centerX, float centerY, float centerZ, float amount, float sigma) {
     // Get current color type from fluidCube
     int currentColorType = fluidCube.getCurrentColorType();
 
@@ -48,13 +52,9 @@ void Simulation::addDensityWithGaussian(float centerX, float centerY, float cent
                 int ny = static_cast<int>(centerY + dy);
                 int nz = static_cast<int>(centerZ + dz);
 
-                if (nx >= 1 && nx < gridSize-1 &&
-                    ny >= 1 && ny < gridSize-1 &&
-                    nz >= 1 && nz < gridSize-1) {
-
+                if (isValidGridCell(nx, ny, nz)) {
                     // Calculate Gaussian weight
-                    float distSq = dx*dx + dy*dy + dz*dz;
-                    float weight = exp(-distSq / (1.5f * sigma * sigma));
+                    float weight = computeGaussianWeight(dx, dy, dz, sigma);
 
                     // Add weighted density with color
                     fluidCube.addDensityWithColor(nx, ny, nz, amount * weight * 0.7f, currentColorType);
@@ -63,6 +63,7 @@ void Simulation::addDensityWithGaussian(float centerX, float centerY, float cent
         }
     }
 }
+
 
 // Add method to clear all fluids
 void Simulation::clearAllFluids() {
@@ -100,10 +101,9 @@ void Simulation::handleMouseMove(int x, int y, int width, int height)
 }
 
 void Simulation::addVelocityWithGaussian(float centerX, float centerY, float centerZ,
-                                         float velX, float velY, float velZ, float sigma)
-{
+                                         float velX, float velY, float velZ, float sigma) {
     int radius = static_cast<int>(sigma * 1.8f);
-    #pragma omp parallel for collapse(3)
+#pragma omp parallel for collapse(3)
     for (int dz = -radius; dz <= radius; dz++) {
         for (int dy = -radius; dy <= radius; dy++) {
             for (int dx = -radius; dx <= radius; dx++) {
@@ -111,13 +111,9 @@ void Simulation::addVelocityWithGaussian(float centerX, float centerY, float cen
                 int ny = static_cast<int>(centerY + dy);
                 int nz = static_cast<int>(centerZ + dz);
 
-                if (nx >= 1 && nx < gridSize-1 &&
-                    ny >= 1 && ny < gridSize-1 &&
-                    nz >= 1 && nz < gridSize-1) {
-
+                if (isValidGridCell(nx, ny, nz)) {
                     // Calculate Gaussian weight
-                    float distSq = dx*dx + dy*dy + dz*dz;
-                    float weight = exp(-distSq / (1.2f * sigma * sigma));
+                    float weight = computeGaussianWeight(dx, dy, dz, sigma);
 
                     // Add weighted velocity
                     fluidCube.addVelocity(nx, ny, nz,
@@ -129,6 +125,9 @@ void Simulation::addVelocityWithGaussian(float centerX, float centerY, float cen
         }
     }
 }
+
+
+
 
 void Simulation::addObstacle() {
     int size = fluidCube.getSize();
@@ -172,4 +171,16 @@ void Simulation::initGround()
     groundFaces.emplace_back(0, 1, 2);
     groundFaces.emplace_back(0, 2, 3);
     m_ground.init(groundVerts, groundFaces);
+}
+
+
+float Simulation::computeGaussianWeight(int dx, int dy, int dz, float sigma) {
+    float distSq = dx*dx + dy*dy + dz*dz;
+    return exp(-distSq / (1.5f * sigma * sigma));
+}
+
+bool Simulation::isValidGridCell(int nx, int ny, int nz) {
+    return nx >= 1 && nx < gridSize-1 &&
+           ny >= 1 && ny < gridSize-1 &&
+           nz >= 1 && nz < gridSize-1;
 }

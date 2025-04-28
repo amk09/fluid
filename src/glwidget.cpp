@@ -164,6 +164,7 @@ void GLWidget::wheelEvent(QWheelEvent *event)
 void GLWidget::keyPressEvent(QKeyEvent *event)
 {
     if (event->isAutoRepeat()) return;
+
     switch (event->key())
     {
     case Qt::Key_W: m_forward  += SPEED; break;
@@ -217,7 +218,8 @@ void GLWidget::keyPressEvent(QKeyEvent *event)
         break;
     case Qt::Key_0:
         m_sim.fluidCube.setColorMap(0);
-        std::cout << "Default Water" << std::endl;
+        std::cout << "Default Water - Color type set to: " <<
+            m_sim.fluidCube.getCurrentColorType() << std::endl;
         break;
     case Qt::Key_M:
         // Toggle shell rendering

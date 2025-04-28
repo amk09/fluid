@@ -54,4 +54,10 @@ private:
     void addVelocityWithGaussian(float centerX, float centerY, float centerZ,
                                  float velX, float velY, float velZ, float sigma);
 
+    // Helper function to compute Gaussian weight
+    float computeGaussianWeight(int dx, int dy, int dz, float sigma);
+
+    // Helper function to check cell validity
+    bool isValidGridCell(int nx, int ny, int nz);
+
 };
