@@ -807,3 +807,19 @@ void FluidCube::uploadCustomDensityToGPU(const std::vector<float>& customDensity
 }
 
 
+void FluidCube::clearObstacles() {
+    // Clear obstacle markers
+    for (int idx : g_obstacleCells) {
+        if (idx >= 0 && idx < density.size()) {
+            density[idx] = 0.0f;
+            fluidColors[idx] = 0; // Also clear colors
+        }
+    }
+
+    std::fill(g_obstacle.begin(), g_obstacle.end(), 0);
+    g_obstacleCells.clear();
+
+    // Update GPU textures immediately
+    uploadDensityToGPU();
+    uploadColorFieldToGPU();
+}
