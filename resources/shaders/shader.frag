@@ -1,4 +1,4 @@
-// #version 330 core
+#version 330 core
 // out vec4 fragColor;
 
 // // These are for the original FEM project
@@ -803,7 +803,6 @@
 // }
 
 
-#version 330 core
 out vec4 fragColor;
 
 // These are for the original FEM project
@@ -997,7 +996,12 @@ void main() {
                 effectiveColorType = colorMapType;
             }
 
-            if (effectiveColorType == 0) {
+            if (localColorType == 999) {  // Special value for obstacles
+                // Use a fixed color for obstacles
+                color = vec3(0.4, 0.4, 0.4);  // Simple gray color
+                alphaValue = density * 0.8;   // More opaque
+            }
+            else if (effectiveColorType == 0) {
                 // Original blue water color logic with enhanced depth effect
                 float depthEffect = pow(depth, 1.2); // Makes depth effect more pronounced
                 color = mix(waterDeepColor, waterBaseColor, depthEffect);

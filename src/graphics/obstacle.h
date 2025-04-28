@@ -19,4 +19,11 @@ void addObstacleCube(int x0, int y0, int z0, int w, int h, int d, int size);
 // Keep the density of the obstacle
 void densityInsideObstacles(std::vector<float>& density);
 
+// Set special color values for obstacles
+void setObstacleColors(std::vector<int>& colorField);
+
+
+// Check if a cell is an obstacle
+bool isObstacle(int idx);
+
 #endif // OBSTACLE_H
