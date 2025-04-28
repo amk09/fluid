@@ -16,6 +16,8 @@ An implementation of a 3D fluid simulator based on Jos Stam's [Stable Fluids](ht
 - **Interactive Controls:** Real-time addition of density and velocity through mouse interaction
 - **Customizable Parameters:** Adjust viscosity, diffusion, iterations and more
 - **Efficient Implementation:** OpenMP parallelization for improved performance
+- **Color Mixture:** Different fluid colors can appear at the same time
+- **Obstacle Detection:** Obstacles can be placed freely in the domain, and the fluid automatically avoids diffusing into them.
 
 ## Requirements
 
@@ -48,13 +50,21 @@ make
 ```
 
 ## User Interaction
- - Left Mouse Drag: Add density and velocity in the direction of movement
- - Right Mouse Drag: Rotate camera
- - WASD: Move camera
- - P: Pause/start simulation
- - V: Increase vorticity
- - B: Decrease vorticity
- - 1/2/3/4: Change different colors
+
+- Left Mouse Drag: Add density and velocity in the direction of movement
+- Right Mouse Drag: Rotate camera
+- W/A/S/D/R/F: Move camera
+- C: Toggle camera orbit mode
+- T: Toggle wireframe mode
+- P: Pause/start simulation
+- V: Increase vorticity strength
+- B: Decrease vorticity strength
+- 1~9, 0, L: Switch between different color maps
+- M: Toggle between Volume and Shell rendering
+- O: Add obstacle
+- I: Clear obstacles
+- Space/Delete/Return: Clear all fluids
+- Esc: Quit application
 
 ## Parameter Tuning
 You can modify these parameters in the GUI or directly in the code:

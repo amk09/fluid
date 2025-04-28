@@ -54,6 +54,7 @@ add_executable(${PROJECT_NAME}
     util/tiny_obj_loader.h
     util/unsupportedeigenthing/OpenGLSupport
     src/graphics/fluidcube.h src/graphics/fluidcube.cpp
+    src/graphics/obstacle.h src/graphics/obstacle.cpp
 )
 
 # GLEW: this creates its library and allows you to `#include "GL/glew.h"`

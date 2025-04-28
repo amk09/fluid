@@ -236,12 +236,20 @@ void GLWidget::keyPressEvent(QKeyEvent *event)
             std::max(0.0f, m_sim.fluidCube.getVorticityStrength() - 0.2f));
         std::cout << "Vorticity Strength: " << m_sim.fluidCube.getVorticityStrength() << std::endl;
         break;
+    case Qt::Key_O:
+        m_sim.addObstacle();
+        std::cout << "Add Obstacle" << endl;
+            break;
+    case Qt::Key_I:
+        m_sim.clearObstacle();
+        std::cout << "Clear Obstacle" << endl;
+        break;
     // Add clear fluid shortcuts
     case Qt::Key_Space:
     case Qt::Key_Delete:
     case Qt::Key_Return:
         m_sim.clearAllFluids();
-        std::cout << "Cleared all fluids" << std::endl;
+        cout << "Cleared all fluids" << std::endl;
         break;
     case Qt::Key_Escape: QApplication::quit();
     }

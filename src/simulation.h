@@ -29,6 +29,10 @@ public:
     FluidCube fluidCube;
 
 
+    // Obstacle Stuff
+    void addObstacle();
+    void clearObstacle();
+
 
 private:
 
@@ -49,7 +53,5 @@ private:
     void addDensityWithGaussian(float centerX, float centerY, float centerZ, float amount, float sigma);
     void addVelocityWithGaussian(float centerX, float centerY, float centerZ,
                                  float velX, float velY, float velZ, float sigma);
-
-
 
 };

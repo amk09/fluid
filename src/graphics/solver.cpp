@@ -1,4 +1,5 @@
 #include "solver.h"
+#include "graphics/obstacle.h"
 #include <omp.h>
 
 int IX(int x, int y, int z, int N) {
@@ -125,6 +126,31 @@ void project(vector<float> &velocityX, vector<float> &velocityY, vector<float> &
 //For velocity fields, the component perpendicular to a wall is reflected.
 //For scalar fields, values at the boundary are copied from adjacent cells.
 void set_bnd(int b, vector<float> &dataWrittenTo, int N){
+
+    if (!g_obstacle.empty()) {
+        for (int k = 1; k < N-1; k++) {
+            for (int j = 1; j < N-1; j++) {
+                for (int i = 1; i < N-1; i++) {
+                    int idx = IX(i, j, k, N);
+                    if (g_obstacle[idx] == 1) {
+                        if (g_obstacle[IX(i-1,j,k,N)] == 0)
+                            dataWrittenTo[IX(i-1,j,k,N)] = (b == 1) ? -dataWrittenTo[idx] : dataWrittenTo[idx];
+                        if (g_obstacle[IX(i+1,j,k,N)] == 0)
+                            dataWrittenTo[IX(i+1,j,k,N)] = (b == 1) ? -dataWrittenTo[idx] : dataWrittenTo[idx];
+                        if (g_obstacle[IX(i,j-1,k,N)] == 0)
+                            dataWrittenTo[IX(i,j-1,k,N)] = (b == 2) ? -dataWrittenTo[idx] : dataWrittenTo[idx];
+                        if (g_obstacle[IX(i,j+1,k,N)] == 0)
+                            dataWrittenTo[IX(i,j+1,k,N)] = (b == 2) ? -dataWrittenTo[idx] : dataWrittenTo[idx];
+                        if (g_obstacle[IX(i,j,k-1,N)] == 0)
+                            dataWrittenTo[IX(i,j,k-1,N)] = (b == 3) ? -dataWrittenTo[idx] : dataWrittenTo[idx];
+                        if (g_obstacle[IX(i,j,k+1,N)] == 0)
+                            dataWrittenTo[IX(i,j,k+1,N)] = (b == 3) ? -dataWrittenTo[idx] : dataWrittenTo[idx];
+                    }
+                }
+            }
+        }
+    }
+
     for (int i = 1; i < N - 1; i++) {
         for (int j = 1; j < N - 1; j++) {
             //for Z axis
@@ -152,8 +178,6 @@ void set_bnd(int b, vector<float> &dataWrittenTo, int N){
     dataWrittenTo[IX(N - 1, N - 1, N - 1, N)] = (dataWrittenTo[IX(N - 2, N - 1, N - 1, N)] + dataWrittenTo[IX(N - 1, N - 2, N - 1, N)] + dataWrittenTo[IX(N - 1, N - 1, N - 2, N)]) / 3.0f;
 
 }
-
-
 
 
 void conserveDensity(std::vector<float> &density, float targetDensity, int N) {

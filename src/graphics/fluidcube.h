@@ -58,6 +58,7 @@ public:
 
     // Get current color type
     int getCurrentColorType() const { return m_colorMapType; }
+    int getSize() const {return size;}
 
 private:
     // Below are the units for OpenGL rendering

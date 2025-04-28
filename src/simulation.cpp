@@ -2,6 +2,7 @@
 #include "graphics/meshloader.h"
 
 #include <iostream>
+#include <graphics/obstacle.h>
 
 using namespace Eigen;
 
@@ -11,10 +12,9 @@ void Simulation::init()
 {
     // Initialize the fluid with much lower diffusion and viscosity parameters
     // This will make the fluid less likely to spread out horizontally
-    gridSize = 48;
+    gridSize = 32;
     fluidCube.init(gridSize, 0.00001, 0.00001);
 }
-
 
 void Simulation::handleMousePress(int x, int y, int width, int height)
 {
@@ -130,6 +130,14 @@ void Simulation::addVelocityWithGaussian(float centerX, float centerY, float cen
     }
 }
 
+void Simulation::addObstacle() {
+    int size = fluidCube.getSize();
+    addObstacleCube(0, 5, 0, 11, 6, 11, size);
+}
+
+void Simulation::clearObstacle() {
+    clearObstacles();
+}
 
 void Simulation::update(double seconds)
 {

@@ -1,6 +1,7 @@
 #include "fluidcube.h"
 #include "graphics/shader.h"
 #include "graphics/solver.h"
+#include "graphics/obstacle.h"
 #include "graphics/vectorfield.h"
 #include <iomanip>
 #include <iostream>
@@ -322,6 +323,9 @@ void FluidCube::init(int size, float diffuse, float viscosity){
 
     initFullscreenQuad();
 
+    // Obstacle Init
+    initObstacleMap(totalCells);
+
     // Inject Density and then upload it to GPU
     uploadDensityToGPU();
     // Initialize color texture
@@ -335,38 +339,38 @@ void FluidCube::update(float dt)
     // 1. Add vorticity confinement
     addVorticityConfinement(vX0, vY0, vZ0, dt, size, m_vorticityStrength);
 
-#pragma omp parallel sections
+    #pragma omp parallel sections
     {
-#pragma omp section
+        #pragma omp section
         {
             addSource(vX, vX0);
         }
 
-#pragma omp section
+        #pragma omp section
         {
             addSource(vY, vY0);
         }
 
-#pragma omp section
+        #pragma omp section
         {
             addSource(vZ, vZ0);
         }
     }
 
     // 2. Diffuse velocity
-#pragma omp parallel sections
+    #pragma omp parallel sections
     {
-#pragma omp section
+        #pragma omp section
         {
             diffuse_velocity(1, vX0, vX, visc, dt, iter, size);
         }
 
-#pragma omp section
+        #pragma omp section
         {
             diffuse_velocity(2, vY0, vY, visc, dt, iter, size);
         }
 
-#pragma omp section
+        #pragma omp section
         {
             diffuse_velocity(3, vZ0, vZ, visc, dt, iter, size);
         }
@@ -376,19 +380,19 @@ void FluidCube::update(float dt)
     project(vX0, vY0, vZ0, vX, vY, iter, size);
 
     // 4. Advect velocity
-#pragma omp parallel sections
+    #pragma omp parallel sections
     {
-#pragma omp section
+        #pragma omp section
         {
             advect(1, vX, vX0, vX0, vY0, vZ0, dt, size);
         }
 
-#pragma omp section
+        #pragma omp section
         {
             advect(2, vY, vY0, vX0, vY0, vZ0, dt, size);
         }
 
-#pragma omp section
+        #pragma omp section
         {
             advect(3, vZ, vZ0, vX0, vY0, vZ0, dt, size);
         }
@@ -411,9 +415,11 @@ void FluidCube::update(float dt)
     // Fade the density value in density: To avoid the inaccurate calculation's increasing density
     densityFade(dt);
 
+    // Make Sure Obstacle's Density is 0.0
+    clearDensityInsideObstacles(density);
+
     // Clean the density value in density0
     empty_den();
-
 
     // Perform extra color enhancement to fix possible inconsistencies
     for (int i = 0; i < totalCells; i++) {
