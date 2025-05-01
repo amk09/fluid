@@ -76,7 +76,6 @@ void FluidCube::addDensity(int x, int y, int z, float amount) {
 }
 
 
-
 void FluidCube::addDensityWithColor(int x, int y, int z, float amount, int colorType) {
     // Clamp coordinates to valid range
     x = std::max(1, std::min(x, size-2));
@@ -87,63 +86,32 @@ void FluidCube::addDensityWithColor(int x, int y, int z, float amount, int color
 
     // Add to center cell
     float oldDensity = density[idx];
-    density[idx] = std::clamp(density[idx] + amount, 0.0f, 1.0f);
-
-    // More aggressive color setting - apply color even for small density changes
-    if (oldDensity < 0.1f || amount > 0.05f) {
-        fluidColors[idx] = colorType;
-    }
+    addDensityToCell(x, y, z, amount, colorType, oldDensity);
 
     // Add small amounts to neighboring cells for smoothness
     float neighborAmount = amount * 0.2f;
 
     // Add to 6 direct neighbors
     for (int i = -1; i <= 1; i += 2) {
-        int nx = x + i;
-        int ny = y;
-        int nz = z;
-        if (nx >= 1 && nx < size-1) {
-            int nidx = index(nx, ny, nz);
-            oldDensity = density[nidx];
-            density[nidx] = std::clamp(density[nidx] + neighborAmount, 0.0f, 1.0f);
-            // More aggressive color propagation
-            if (oldDensity < 0.1f || neighborAmount > 0.02f) {
-                fluidColors[nidx] = colorType;
-            }
+        // X neighbors
+        if (isValidCell(x+i, y, z)) {
+            oldDensity = density[index(x+i, y, z)];
+            addDensityToCell(x+i, y, z, neighborAmount, colorType, oldDensity);
         }
-    }
 
-    for (int i = -1; i <= 1; i += 2) {
-        int nx = x;
-        int ny = y + i;
-        int nz = z;
-        if (ny >= 1 && ny < size-1) {
-            int nidx = index(nx, ny, nz);
-            oldDensity = density[nidx];
-            density[nidx] = std::clamp(density[nidx] + neighborAmount, 0.0f, 1.0f);
-            // More aggressive color propagation
-            if (oldDensity < 0.1f || neighborAmount > 0.02f) {
-                fluidColors[nidx] = colorType;
-            }
+        // Y neighbors
+        if (isValidCell(x, y+i, z)) {
+            oldDensity = density[index(x, y+i, z)];
+            addDensityToCell(x, y+i, z, neighborAmount, colorType, oldDensity);
         }
-    }
 
-    for (int i = -1; i <= 1; i += 2) {
-        int nx = x;
-        int ny = y;
-        int nz = z + i;
-        if (nz >= 1 && nz < size-1) {
-            int nidx = index(nx, ny, nz);
-            oldDensity = density[nidx];
-            density[nidx] = std::clamp(density[nidx] + neighborAmount, 0.0f, 1.0f);
-            // More aggressive color propagation
-            if (oldDensity < 0.1f || neighborAmount > 0.02f) {
-                fluidColors[nidx] = colorType;
-            }
+        // Z neighbors
+        if (isValidCell(x, y, z+i)) {
+            oldDensity = density[index(x, y, z+i)];
+            addDensityToCell(x, y, z+i, neighborAmount, colorType, oldDensity);
         }
     }
 }
-
 
 
 // Function to upload color field to GPU
@@ -151,12 +119,7 @@ void FluidCube::uploadColorFieldToGPU() {
     if (m_colorTexture == 0)
         glGenTextures(1, &m_colorTexture);
 
-    glBindTexture(GL_TEXTURE_3D, m_colorTexture);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    setupTextureParameters(m_colorTexture);
 
     // Convert int vector to float for OpenGL
     std::vector<float> colorData(totalCells);
@@ -177,6 +140,7 @@ void FluidCube::uploadColorFieldToGPU() {
 
     glBindTexture(GL_TEXTURE_3D, 0);
 }
+
 
 // Upload custom color field for shell rendering
 void FluidCube::uploadCustomColorToGPU(const std::vector<float>& customColors) {
@@ -222,7 +186,6 @@ void FluidCube::drawVolume(Shader* shader) {
 
     shader->setUniform("densityTex", 0);
     shader->setUniform("colorTex", 1);
-    shader->setUniform("fluidStyle", 1);
     shader->setUniform("colorMapType", m_colorMapType);
     shader->setUniform("renderMode", m_renderMode);
     shader->setUniform("size", size);
@@ -332,45 +295,43 @@ void FluidCube::init(int size, float diffuse, float viscosity){
     uploadColorFieldToGPU();
 }
 
-
-
 void FluidCube::update(float dt)
 {
     // 1. Add vorticity confinement
     addVorticityConfinement(vX0, vY0, vZ0, dt, size, m_vorticityStrength);
 
-    #pragma omp parallel sections
+#pragma omp parallel sections
     {
-        #pragma omp section
+#pragma omp section
         {
             addSource(vX, vX0);
         }
 
-        #pragma omp section
+#pragma omp section
         {
             addSource(vY, vY0);
         }
 
-        #pragma omp section
+#pragma omp section
         {
             addSource(vZ, vZ0);
         }
     }
 
     // 2. Diffuse velocity
-    #pragma omp parallel sections
+#pragma omp parallel sections
     {
-        #pragma omp section
+#pragma omp section
         {
             diffuse_velocity(1, vX0, vX, visc, dt, iter, size);
         }
 
-        #pragma omp section
+#pragma omp section
         {
             diffuse_velocity(2, vY0, vY, visc, dt, iter, size);
         }
 
-        #pragma omp section
+#pragma omp section
         {
             diffuse_velocity(3, vZ0, vZ, visc, dt, iter, size);
         }
@@ -380,19 +341,19 @@ void FluidCube::update(float dt)
     project(vX0, vY0, vZ0, vX, vY, iter, size);
 
     // 4. Advect velocity
-    #pragma omp parallel sections
+#pragma omp parallel sections
     {
-        #pragma omp section
+#pragma omp section
         {
             advect(1, vX, vX0, vX0, vY0, vZ0, dt, size);
         }
 
-        #pragma omp section
+#pragma omp section
         {
             advect(2, vY, vY0, vX0, vY0, vZ0, dt, size);
         }
 
-        #pragma omp section
+#pragma omp section
         {
             advect(3, vZ, vZ0, vX0, vY0, vZ0, dt, size);
         }
@@ -415,24 +376,60 @@ void FluidCube::update(float dt)
     // Fade the density value in density: To avoid the inaccurate calculation's increasing density
     densityFade(dt);
 
-    // Make Sure Obstacle's Density is 0.0
-    clearDensityInsideObstacles(density);
+    // Make Sure Obstacle's Density is 1.0
+    densityInsideObstacles(density);
 
     // Clean the density value in density0
     empty_den();
 
-    // Perform extra color enhancement to fix possible inconsistencies
-    for (int i = 0; i < totalCells; i++) {
-        // For cells with significant density but no color, force default color
-        if (density[i] > 0.03f && fluidColors[i] == 0) {
-            // Assign a safe default color (0) instead of using the global color
-            fluidColors[i] = 0;
+    // Handle boundary cells - set density and color to 0
+    for (int k = 0; k < size; k++) {
+        for (int j = 0; j < size; j++) {
+            // X boundaries
+            density[index(0, j, k)] = 0.0f;
+            density[index(size-1, j, k)] = 0.0f;
+            fluidColors[index(0, j, k)] = 0;
+            fluidColors[index(size-1, j, k)] = 0;
+
+            // Y boundaries
+            density[index(j, 0, k)] = 0.0f;
+            density[index(j, size-1, k)] = 0.0f;
+            fluidColors[index(j, 0, k)] = 0;
+            fluidColors[index(j, size-1, k)] = 0;
+
+            // Z boundaries
+            density[index(j, k, 0)] = 0.0f;
+            density[index(j, k, size-1)] = 0.0f;
+            fluidColors[index(j, k, 0)] = 0;
+            fluidColors[index(j, k, size-1)] = 0;
         }
     }
 
+    // First mark all obstacle cells with special color
+    setObstacleColors(fluidColors);
+
+    // Perform extra color enhancement to fix possible inconsistencies
+    for (int i = 0; i < totalCells; i++) {
+        // Skip obstacle and boundary cells
+        if (isObstacle(i)) continue;
+
+        // Skip boundary cells - extra check
+        int x = i % size;
+        int y = (i / size) % size;
+        int z = i / (size * size);
+        if (x == 0 || x == size-1 || y == 0 || y == size-1 || z == 0 || z == size-1) continue;
+
+        // For cells with significant density but no color, force default color
+        if (density[i] > 0.03f && fluidColors[i] == 0) {
+            fluidColors[i] = m_colorMapType;
+        }
+    }
 
     // Propagate colors to ensure they follow density properly
     propagateColors();
+
+    // Re-mark all obstacle cells with special color to ensure they weren't overwritten
+    setObstacleColors(fluidColors);
 
     // Upload both density and color to GPU
     uploadDensityToGPU();
@@ -440,7 +437,6 @@ void FluidCube::update(float dt)
 }
 
 
-// Add this new function to propagate colors with fluid movement
 void FluidCube::propagateColors() {
     // For each cell, if it has significant density but no color assigned yet,
     // get color from neighboring cells with highest density
@@ -449,80 +445,21 @@ void FluidCube::propagateColors() {
             for (int i = 1; i < size-1; i++) {
                 int idx = index(i, j, k);
 
+                // Skip obstacle cells
+                if (isObstacle(idx)) continue;
+
+                // Skip boundary cells (should be handled already, this is extra protection)
+                if (i == 0 || i == size-1 || j == 0 || j == size-1 || k == 0 || k == size-1) continue;
+
                 // Only process cells with density but no color - even lower threshold
                 if (density[idx] > 0.005f && fluidColors[idx] == 0) {
-                    float maxDensity = 0.0f;
-                    int bestColor = 0;
-
-                    // Check immediate neighbors first (6-connected)
-                    // This prioritizes direct color transfer over diagonal connections
-                    bool foundDirectNeighbor = false;
-
-                    // Check direct neighbors first (more accurate color propagation)
-                    const int directNeighbors[6][3] = {
-                        {-1, 0, 0}, {1, 0, 0}, {0, -1, 0}, {0, 1, 0}, {0, 0, -1}, {0, 0, 1}
-                    };
-
-                    for (int n = 0; n < 6; n++) {
-                        int nx = i + directNeighbors[n][0];
-                        int ny = j + directNeighbors[n][1];
-                        int nz = k + directNeighbors[n][2];
-
-                        if (nx >= 1 && nx < size-1 &&
-                            ny >= 1 && ny < size-1 &&
-                            nz >= 1 && nz < size-1) {
-
-                            int nidx = index(nx, ny, nz);
-
-                            // If direct neighbor has color and significant density
-                            if (density[nidx] > 0.05f && fluidColors[nidx] > 0) {
-                                fluidColors[idx] = fluidColors[nidx];
-                                foundDirectNeighbor = true;
-                                break;
-                            }
-                        }
-                    }
-
-                    // If no direct neighbor with color, check all neighbors
-                    if (!foundDirectNeighbor) {
-                        // Check all 26 neighbors (including diagonals)
-                        for (int nz = -1; nz <= 1; nz++) {
-                            for (int ny = -1; ny <= 1; ny++) {
-                                for (int nx = -1; nx <= 1; nx++) {
-                                    // Skip center cell
-                                    if (nx == 0 && ny == 0 && nz == 0) continue;
-
-                                    int ni = i + nx;
-                                    int nj = j + ny;
-                                    int nk = k + nz;
-
-                                    // Check if neighbor is valid
-                                    if (ni >= 1 && ni < size-1 &&
-                                        nj >= 1 && nj < size-1 &&
-                                        nk >= 1 && nk < size-1) {
-
-                                        int nidx = index(ni, nj, nk);
-
-                                        // If neighbor has higher density and a color
-                                        if (density[nidx] > maxDensity && fluidColors[nidx] > 0) {
-                                            maxDensity = density[nidx];
-                                            bestColor = fluidColors[nidx];
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // Apply the best color found
-                        if (bestColor > 0) {
-                            fluidColors[idx] = bestColor;
-                        }
-                    }
+                    findBetterColorFromNeighbors(idx, i, j, k);
                 }
             }
         }
     }
 }
+
 
 
 void FluidCube::addVelocity(int x, int y, int z, float amountX, float amountY, float amountZ){
@@ -571,34 +508,10 @@ void FluidCube::uploadDensityToGPU() {
     if (m_densityTexture == 0)
         glGenTextures(1, &m_densityTexture);
 
-
-    std::vector<float> enhancedDensity(density.size());
-
-    float minDensity = 1.0f;
-    float maxDensity = 0.0f;
-    for (int i = 0; i < density.size(); i++) {
-        minDensity = std::min(minDensity, density[i]);
-        maxDensity = std::max(maxDensity, density[i]);
-    }
-
-    // Apply contrast enhancement
-    float range = maxDensity - minDensity;
-    if (range > 0.01f) {  // Only if there's actual variation
-        for (int i = 0; i < density.size(); i++) {
-            // Normalize to [0,1] range
-            float normalized = (density[i] - minDensity) / range;
-            // Apply power curve for more contrast
-            enhancedDensity[i] = std::pow(normalized, 1.5f);
-        }
-    } else {
-        enhancedDensity = density;  // No enhancement if uniform
-    }
-
+    // Set up texture parameters with our helper function
     glBindTexture(GL_TEXTURE_3D, m_densityTexture);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    // glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    // glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
@@ -616,8 +529,6 @@ void FluidCube::uploadDensityToGPU() {
 
     glBindTexture(GL_TEXTURE_3D, 0);
 }
-
-
 
 
 // Below is one of the methods to visualize the density
@@ -731,6 +642,7 @@ void FluidCube::visualizeVelocity() {
 
 void FluidCube::setColorMap(int colorType) {
     m_colorMapType = colorType;
+    uploadColorFieldToGPU();
 }
 
 
@@ -760,3 +672,119 @@ void FluidCube::uploadCustomDensityToGPU(const std::vector<float>& customDensity
 }
 
 
+
+
+// New helper method to set texture parameters
+void FluidCube::setupTextureParameters(GLuint texture) {
+    glBindTexture(GL_TEXTURE_3D, texture);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+}
+
+// Helper method for adding density to a cell with color consideration
+void FluidCube::addDensityToCell(int x, int y, int z, float amount, int colorType, float oldDensity) {
+    int idx = index(x, y, z);
+
+    // Add density, clamping to valid range
+    density[idx] = std::clamp(density[idx] + amount, 0.0f, 1.0f);
+
+    // Apply color if significant change or low previous density
+    if (oldDensity < 0.1f || amount > 0.05f) {
+        fluidColors[idx] = colorType;
+    }
+}
+
+// Method to find a better color from neighbors during propagation
+bool FluidCube::findBetterColorFromNeighbors(int idx, int i, int j, int k) {
+    float maxDensity = 0.0f;
+    int bestColor = 0;
+    bool foundBetterColor = false;
+
+    // Check direct neighbors first (more accurate color propagation)
+    const int directNeighbors[6][3] = {
+        {-1, 0, 0}, {1, 0, 0}, {0, -1, 0}, {0, 1, 0}, {0, 0, -1}, {0, 0, 1}
+    };
+
+    for (int n = 0; n < 6; n++) {
+        int nx = i + directNeighbors[n][0];
+        int ny = j + directNeighbors[n][1];
+        int nz = k + directNeighbors[n][2];
+
+        if (isValidCell(nx, ny, nz)) {
+            int nidx = index(nx, ny, nz);
+
+            // Skip obstacle neighbors - don't propagate obstacle color
+            if (isObstacle(nidx)) continue;
+
+            // If direct neighbor has color and significant density
+            if (density[nidx] > 0.05f && fluidColors[nidx] > 0 && fluidColors[nidx] != 999) {
+                fluidColors[idx] = fluidColors[nidx];
+                foundBetterColor = true;
+                return true;
+            }
+        }
+    }
+
+    // If no direct neighbor with color, check all neighbors
+    if (!foundBetterColor) {
+        // Check all 26 neighbors (including diagonals)
+        for (int nz = -1; nz <= 1; nz++) {
+            for (int ny = -1; ny <= 1; ny++) {
+                for (int nx = -1; nx <= 1; nx++) {
+                    // Skip center cell
+                    if (nx == 0 && ny == 0 && nz == 0) continue;
+
+                    int ni = i + nx;
+                    int nj = j + ny;
+                    int nk = k + nz;
+
+                    // Check if neighbor is valid
+                    if (isValidCell(ni, nj, nk)) {
+                        int nidx = index(ni, nj, nk);
+
+                        // Skip obstacle neighbors
+                        if (isObstacle(nidx)) continue;
+
+                        // If neighbor has higher density and a valid color (not obstacle)
+                        if (density[nidx] > maxDensity &&
+                            fluidColors[nidx] > 0 &&
+                            fluidColors[nidx] != 999) {
+                            maxDensity = density[nidx];
+                            bestColor = fluidColors[nidx];
+                            foundBetterColor = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Apply the best color found
+        if (bestColor > 0) {
+            fluidColors[idx] = bestColor;
+            return true;
+        }
+    }
+
+    return foundBetterColor;
+}
+
+// Implement the clearObstacles method (that was previously added)
+void FluidCube::clearObstacles() {
+    // Clear obstacle markers
+    for (int idx : g_obstacleCells) {
+        if (idx >= 0 && idx < density.size()) {
+            density[idx] = 0.0f;
+            fluidColors[idx] = 0; // Also clear colors
+        }
+    }
+
+    std::fill(g_obstacle.begin(), g_obstacle.end(), 0);
+    g_obstacleCells.clear();
+
+    // Update GPU textures immediately
+    uploadDensityToGPU();
+    uploadColorFieldToGPU();
+}

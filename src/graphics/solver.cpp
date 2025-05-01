@@ -134,23 +134,30 @@ void set_bnd(int b, vector<float> &dataWrittenTo, int N){
                 for (int i = 1; i < N-1; i++) {
                     int idx = IX(i, j, k, N);
                     if (g_obstacle[idx] == 1) {
-                        if (g_obstacle[IX(i-1,j,k,N)] == 0)
-                            dataWrittenTo[IX(i-1,j,k,N)] = (b == 1) ? -dataWrittenTo[idx] : dataWrittenTo[idx];
-                        if (g_obstacle[IX(i+1,j,k,N)] == 0)
-                            dataWrittenTo[IX(i+1,j,k,N)] = (b == 1) ? -dataWrittenTo[idx] : dataWrittenTo[idx];
-                        if (g_obstacle[IX(i,j-1,k,N)] == 0)
-                            dataWrittenTo[IX(i,j-1,k,N)] = (b == 2) ? -dataWrittenTo[idx] : dataWrittenTo[idx];
-                        if (g_obstacle[IX(i,j+1,k,N)] == 0)
-                            dataWrittenTo[IX(i,j+1,k,N)] = (b == 2) ? -dataWrittenTo[idx] : dataWrittenTo[idx];
-                        if (g_obstacle[IX(i,j,k-1,N)] == 0)
-                            dataWrittenTo[IX(i,j,k-1,N)] = (b == 3) ? -dataWrittenTo[idx] : dataWrittenTo[idx];
-                        if (g_obstacle[IX(i,j,k+1,N)] == 0)
-                            dataWrittenTo[IX(i,j,k+1,N)] = (b == 3) ? -dataWrittenTo[idx] : dataWrittenTo[idx];
+                        // Left neighbor
+                        if (g_obstacle[IX(i-1, j, k, N)] == 0 && b == 1)
+                            dataWrittenTo[IX(i-1, j, k, N)] = 0.0f;
+                        // Right neighbor
+                        if (g_obstacle[IX(i+1, j, k, N)] == 0 && b == 1)
+                            dataWrittenTo[IX(i+1, j, k, N)] = 0.0f;
+                        // Bottom neighbor
+                        if (g_obstacle[IX(i, j-1, k, N)] == 0 && b == 2)
+                            dataWrittenTo[IX(i, j-1, k, N)] = 0.0f;
+                        // Top neighbor
+                        if (g_obstacle[IX(i, j+1, k, N)] == 0 && b == 2)
+                            dataWrittenTo[IX(i, j+1, k, N)] = 0.0f;
+                        // Back neighbor
+                        if (g_obstacle[IX(i, j, k-1, N)] == 0 && b == 3)
+                            dataWrittenTo[IX(i, j, k-1, N)] = 0.0f;
+                        // Front neighbor
+                        if (g_obstacle[IX(i, j, k+1, N)] == 0 && b == 3)
+                            dataWrittenTo[IX(i, j, k+1, N)] = 0.0f;
                     }
                 }
             }
         }
     }
+
 
     for (int i = 1; i < N - 1; i++) {
         for (int j = 1; j < N - 1; j++) {

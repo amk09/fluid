@@ -41,6 +41,9 @@ public:
     // Clear all fluids from the cube
     void clearAllFluids();
 
+    // New method to clear obstacles
+    void clearObstacles();
+
     //debugger
     void visualizeVelocity();
     float getTotalDensity();
@@ -59,6 +62,8 @@ public:
     // Get current color type
     int getCurrentColorType() const { return m_colorMapType; }
     int getSize() const {return size;}
+    std::vector<float>& getDensity() { return density; }
+
 
 private:
     // Below are the units for OpenGL rendering
@@ -112,6 +117,18 @@ private:
     void uploadDensityToGPU();
     void uploadColorFieldToGPU();
 
+    // Helper method for texture uploads
+    void setupTextureParameters(GLuint texture);
+
+    // Helper method for adding density to adjacent cells
+    void addDensityToCell(int x, int y, int z, float amount, int colorType, float oldDensity);
+
+    // Helper method for checking neighbor validity
+    bool isValidCell(int x, int y, int z);
+
+    // Helper method for color propagation
+    bool findBetterColorFromNeighbors(int idx, int i, int j, int k);
+
     // Handle the increasing density bug caused by inaccurate calculation
     void addSource(vector<float> x, vector<float> x0);
     void empty_vel();
@@ -123,19 +140,25 @@ private:
     void propagateColors();
 };
 
-    inline int FluidCube::getColorMap() const { return m_colorMapType; }
+inline int FluidCube::getColorMap() const { return m_colorMapType; }
 
-    inline void FluidCube::setRenderMode(int mode) { m_renderMode = mode; }
+inline void FluidCube::setRenderMode(int mode) { m_renderMode = mode; }
 
-    inline int FluidCube::getRenderMode() const { return m_renderMode; }
+inline int FluidCube::getRenderMode() const { return m_renderMode; }
 
-    inline void FluidCube::setVorticityStrength(float strength) { m_vorticityStrength = strength; }
+inline void FluidCube::setVorticityStrength(float strength) { m_vorticityStrength = strength; }
 
-    inline float FluidCube::getVorticityStrength() const { return m_vorticityStrength; }
+inline float FluidCube::getVorticityStrength() const { return m_vorticityStrength; }
 
-    inline int FluidCube::index(int x, int y, int z){
-        return (x) + (y) * size + (z) * size * size;
-    }
+inline int FluidCube::index(int x, int y, int z){
+    return (x) + (y) * size + (z) * size * size;
+}
 
+// Helper method to check if a cell is valid
+inline bool FluidCube::isValidCell(int x, int y, int z) {
+    return x >= 1 && x < size-1 &&
+           y >= 1 && y < size-1 &&
+           z >= 1 && z < size-1;
+}
 
 #endif // FLUIDCUBE_H

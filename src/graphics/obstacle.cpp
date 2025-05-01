@@ -16,7 +16,14 @@ void initObstacleMap(int totalCells) {
 }
 
 // Clear all obstacles by resetting to 0 and clearing recorded obstacle cells
-void clearObstacles() {
+void clearObstacles(std::vector<float>& density) {
+
+    for (int idx : g_obstacleCells) {
+        if (idx >= 0 && idx < density.size()) {
+            density[idx] = 0.0f;
+        }
+    }
+
     std::fill(g_obstacle.begin(), g_obstacle.end(), 0);
     g_obstacleCells.clear();
 }
@@ -40,9 +47,29 @@ void addObstacleCube(int x0, int y0, int z0, int w, int h, int d, int size) {
     }
 }
 
-// Set density values inside obstacles to zero
-void clearDensityInsideObstacles(std::vector<float>& density) {
+// Keep the density of the Obstacle
+void densityInsideObstacles(std::vector<float>& density) {
     for (int idx : g_obstacleCells) {
-        density[idx] = 0.0f;
+        if (idx >= 0 && idx < density.size()) {
+            density[idx] = 1.0f;
+        }
     }
+}
+
+// Set special color values for obstacles
+void setObstacleColors(std::vector<int>& colorField) {
+    for (int idx : g_obstacleCells) {
+        if (idx >= 0 && idx < colorField.size()) {
+            // Use special value 999 to indicate obstacle
+            colorField[idx] = 999;
+        }
+    }
+}
+
+// Check if a cell is an obstacle
+bool isObstacle(int idx) {
+    if (idx < 0 || idx >= g_obstacle.size()) {
+        return false;
+    }
+    return g_obstacle[idx] == 1;
 }
