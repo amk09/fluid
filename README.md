@@ -63,6 +63,8 @@ make
 - M: Toggle between Volume and Shell rendering
 - O: Add obstacle
 - I: Clear obstacles
+- ↑ / ↓ / ← / →: Move obstacle in Y/X plane
+- = / -: Move obstacle forward/backward along Z axis
 - Space/Delete/Return: Clear all fluids
 - Esc: Quit application
 

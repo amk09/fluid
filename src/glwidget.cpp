@@ -244,6 +244,36 @@ void GLWidget::keyPressEvent(QKeyEvent *event)
         m_sim.clearObstacle();
         std::cout << "Clear Obstacle" << endl;
         break;
+    case Qt::Key_Up:
+        m_sim.moveUp();
+        std::cout << "Move Up" << std::endl;
+        break;
+
+    case Qt::Key_Down:
+        m_sim.moveDown();
+        std::cout << "Move Down" << std::endl;
+        break;
+
+    case Qt::Key_Left:
+        m_sim.moveLeft();
+        std::cout << "Move Left" << std::endl;
+        break;
+
+    case Qt::Key_Right:
+        m_sim.moveRight();
+        std::cout << "Move Right" << std::endl;
+        break;
+
+    case Qt::Key_Equal:
+        m_sim.moveForward();
+        std::cout << "Move Forward (Z++)" << std::endl;
+        break;
+
+    case Qt::Key_Minus:
+        m_sim.moveBackward();
+        std::cout << "Move Backward (Z--)" << std::endl;
+        break;
+
     // Add clear fluid shortcuts
     case Qt::Key_Space:
     case Qt::Key_Delete:

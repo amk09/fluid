@@ -12,7 +12,10 @@ void Simulation::init()
 {
     // Initialize the fluid with much lower diffusion and viscosity parameters
     // This will make the fluid less likely to spread out horizontally
-    gridSize = 32;
+    gridSize = 35;
+    obstacleX = gridSize / 2;
+    obstacleY = 1;
+    obstacleZ = gridSize / 2;
     fluidCube.init(gridSize, 0.00001, 0.00001);
 }
 
@@ -132,8 +135,45 @@ void Simulation::addVelocityWithGaussian(float centerX, float centerY, float cen
 
 void Simulation::addObstacle() {
     int size = fluidCube.getSize();
-    addObstacleCube(0, 5, 0, 11, 6, 11, size);
+    addObstacleCube(obstacleX, obstacleY, obstacleZ, 10, 10, 10, size);
 }
+
+void Simulation::moveUp() {
+    clearObstacle();
+    obstacleY = std::min(obstacleY + 1, gridSize - 10);
+    addObstacle();
+}
+
+void Simulation::moveDown() {
+    clearObstacle();
+    obstacleY = std::max(obstacleY - 1, 0);
+    addObstacle();
+}
+
+void Simulation::moveLeft() {
+    clearObstacle();
+    obstacleX = std::min(obstacleX + 1, gridSize - 10);
+    addObstacle();
+}
+
+void Simulation::moveRight() {
+    clearObstacle();
+    obstacleX = std::max(obstacleX - 1, 0);
+    addObstacle();
+}
+
+void Simulation::moveForward() {
+    clearObstacle();
+    obstacleZ = std::min(obstacleZ + 1, gridSize - 10);
+    addObstacle();
+}
+
+void Simulation::moveBackward() {
+    clearObstacle();
+    obstacleZ = std::max(obstacleZ - 1, 0);
+    addObstacle();
+}
+
 
 void Simulation::clearObstacle() {
     clearObstacles();

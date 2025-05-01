@@ -33,6 +33,14 @@ public:
     void addObstacle();
     void clearObstacle();
 
+    // Movement control for dye injection point or other interactive element
+    void moveUp();
+    void moveDown();
+    void moveLeft();
+    void moveRight();
+    void moveForward();
+    void moveBackward();
+
 
 private:
 
@@ -53,5 +61,15 @@ private:
     void addDensityWithGaussian(float centerX, float centerY, float centerZ, float amount, float sigma);
     void addVelocityWithGaussian(float centerX, float centerY, float centerZ,
                                  float velX, float velY, float velZ, float sigma);
+
+    // Helper function to compute Gaussian weight
+    float computeGaussianWeight(int dx, int dy, int dz, float sigma);
+
+    // Helper function to check cell validity
+    bool isValidGridCell(int nx, int ny, int nz);
+
+    int obstacleX = 0;
+    int obstacleY = 0;
+    int obstacleZ = 0;
 
 };
