@@ -33,6 +33,14 @@ public:
     void addObstacle();
     void clearObstacle();
 
+    // Movement control for dye injection point or other interactive element
+    void moveUp();
+    void moveDown();
+    void moveLeft();
+    void moveRight();
+    void moveForward();
+    void moveBackward();
+
 
 private:
 
@@ -59,5 +67,9 @@ private:
 
     // Helper function to check cell validity
     bool isValidGridCell(int nx, int ny, int nz);
+
+    int obstacleX = 0;
+    int obstacleY = 0;
+    int obstacleZ = 0;
 
 };
