@@ -607,6 +607,125 @@ void main() {
             color = vec3(0.4, 0.4, 0.4);  // Simple gray color
             alphaValue = density * 0.8;   // More opaque
         }
+        // Pineapple parts
+        else if (localColorType == 1000) {  // Pineapple body (yellow)
+            // Yellow color with orange tint for pineapple
+            float pineappleVar = noise(vec3(vUV.x * 15.0, vUV.y * 15.0, time * 0.05)) * 0.1;
+            color = vec3(0.95, 0.8 + pineappleVar, 0.2);
+            alphaValue = density * 0.98;
+        }
+        else if (localColorType == 1001) {  // Pineapple pattern (darker orange)
+            // Orange-brown for pineapple pattern/texture
+            float patternVar = noise(vec3(vUV.x * 12.0, vUV.y * 12.0, time * 0.05)) * 0.05;
+            color = vec3(0.8, 0.5 + patternVar, 0.1);
+            alphaValue = density * 0.98;
+        }
+        else if (localColorType == 1002) {  // Pineapple crown/leaves (green)
+            // Bright green for crown/leaves
+            float leafVar = noise(vec3(vUV.x * 20.0, vUV.y * 20.0, time * 0.1)) * 0.1;
+            color = vec3(0.2, 0.8 + leafVar, 0.2);
+            alphaValue = density * 0.98;
+        }
+
+        // Orange parts - pixel art style
+        else if (localColorType == 1010) {  // Orange fruit
+            // Bright orange color from reference
+            color = vec3(1.0, 0.6, 0.2);
+            alphaValue = density * 0.98;
+        }
+        else if (localColorType == 1011) {  // Orange stem
+            // Brown stem
+            color = vec3(0.5, 0.3, 0.1);
+            alphaValue = density * 0.98;
+        }
+        else if (localColorType == 1012) {  // Orange leaf
+            // Green leaf
+            color = vec3(0.2, 0.6, 0.3);
+            alphaValue = density * 0.98;
+        }
+
+        // Grape parts - enhanced colors with bloom effect
+        else if (localColorType == 1020) {  // Grape body (dark purple)
+            // Rich dark purple with bloom effect
+            float bloom = pow(density, 2.0) * 0.3;
+            color = vec3(0.35 + bloom, 0.1 + bloom * 0.1, 0.5 + bloom);
+
+            // Add subtle highlight based on viewing angle
+            float highlight = pow(dot(rayDir, vec3(0.0, 1.0, 0.0)), 8.0) * 0.3;
+            color += vec3(highlight);
+
+            alphaValue = density * 0.98;
+        }
+        else if (localColorType == 1021) {  // Grape stem (brown)
+            // Natural woody brown
+            color = vec3(0.4, 0.25, 0.1);
+            // Add subtle wood texture
+            float woodTex = noise(vec3(vUV.x * 12.0, vUV.y * 12.0, 0.0)) * 0.1;
+            color *= (0.95 + woodTex);
+            alphaValue = density * 0.98;
+        }
+        else if (localColorType == 1022) {  // Grape leaf (green)
+            // Vibrant green with subtle variation
+            float leafVar = noise(vec3(vUV.x * 20.0, vUV.y * 20.0, time * 0.1)) * 0.15;
+            color = vec3(0.15, 0.6 + leafVar, 0.15);
+            // Add vein pattern
+            float vein = abs(sin(vUV.x * 20.0) * sin(vUV.y * 20.0)) * 0.2;
+            color *= (1.0 - vein);
+            alphaValue = density * 0.98;
+        }
+        else if (localColorType == 1023) {  // Grape highlight (light purple)
+            // Lighter purple for highlights
+            color = vec3(0.6, 0.3, 0.7);
+            // Add subtle glow
+            float glow = pow(density, 2.0) * 0.2;
+            color += vec3(glow);
+            alphaValue = density * 0.98;
+        }
+
+        // Cherry parts
+        else if (localColorType == 1050) {  // Cherry fruit
+            // Bright cherry red
+            color = vec3(0.9, 0.1, 0.1);
+            // Add subtle highlight for roundness effect
+            float highlight = pow(density, 3.0) * 0.3;
+            color += vec3(highlight);
+            alphaValue = density * 0.98;
+        }
+        else if (localColorType == 1051) {  // Cherry stem
+            // Brown-green stem
+            color = vec3(0.25, 0.35, 0.05);
+            alphaValue = density * 0.98;
+        }
+        else if (localColorType == 1052) {  // Cherry leaf
+            // Bright green leaf
+            float leafVar = noise(vec3(vUV.x * 20.0, vUV.y * 20.0, time * 0.1)) * 0.15;
+            color = vec3(0.3, 0.8 + leafVar, 0.1);
+            alphaValue = density * 0.98;
+        }
+        // Pear parts
+        else if (localColorType == 1040) {  // Pear fruit
+            // Yellow-green pear color with subtle variation
+            float pearVar = noise(vec3(vUV.x * 15.0, vUV.y * 15.0, time * 0.05)) * 0.1;
+            color = vec3(0.8, 0.9 + pearVar, 0.3 + pearVar);
+
+            // Add subtle highlight
+            float highlight = pow(density, 3.0) * 0.2;
+            color += vec3(highlight);
+
+            // Add subtle texture pattern
+            float texture = noise(vec3(vUV.x * 25.0, vUV.y * 25.0, time * 0.01)) * 0.05;
+            color.g += texture;
+
+            alphaValue = density * 0.98;
+        }
+        else if (localColorType == 1041) {  // Pear stem
+            // Brown stem with texture
+            color = vec3(0.4, 0.25, 0.1);
+            float stemTex = noise(vec3(vUV.x * 20.0, vUV.y * 5.0, time * 0.05)) * 0.1;
+            color *= (0.95 + stemTex);
+
+            alphaValue = density * 0.98;
+        }
         else {
             // Get base color for this fluid type
             color = getFluidColor(effectiveColorType, depth, density, edge);
