@@ -135,8 +135,8 @@ void Simulation::addVelocityWithGaussian(float centerX, float centerY, float cen
 void Simulation::addObstacle() {
     int size = fluidCube.getSize();
     addObstacleCube(obstacleX, obstacleY, obstacleZ, 10, 10, 10, size);
+    std::cout << "Add Obstacle at position (" << obstacleX << "," << obstacleY << "," << obstacleZ << ")" << std::endl;
 }
-
 void Simulation::moveUp() {
     clearObstacle();
     obstacleY = std::min(obstacleY + 1, gridSize - 10);
