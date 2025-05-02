@@ -402,7 +402,7 @@ void addObstacleCube(int x0, int y0, int z0, int w, int h, int d, int size) {
 
 
     // Pineapple
-    int pineappleX = centerX - horizDist;
+    int pineappleX = centerX-size*0.36;
     int pineappleY = centerY * 0.8;
     int pineappleZ = centerZ;
     addPineapple(pineappleX, pineappleY, pineappleZ, fruitSize);
@@ -414,7 +414,7 @@ void addObstacleCube(int x0, int y0, int z0, int w, int h, int d, int size) {
     addOrange(orangeX, orangeY, orangeZ, fruitSize);
 
     // Grape
-    int grapeX = centerX;
+    int grapeX = centerX-size*0.05;
     int grapeY = centerY + grapeOffset;
     int grapeZ = centerZ;
     addGrapes(grapeX, grapeY, grapeZ, fruitSize);
