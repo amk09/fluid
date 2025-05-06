@@ -49,7 +49,7 @@ private:
     int m_forward;
     int m_sideways;
     int m_vertical;
-    bool m_pause = false;
+    bool m_pause = true;
     int m_lastX;
     int m_lastY;
 

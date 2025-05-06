@@ -26,6 +26,7 @@ FluidCube::FluidCube()
     m_vbo(0),
     m_ibo(0),
     m_densityTexture(0),
+    m_shellDensityTexture(0),
     m_voxelVao(0),
     m_voxelVbo(0),
     m_voxelIbo(0),
@@ -92,9 +93,6 @@ void FluidCube::update(float dt)
         return;  // Skip simulation logic
     }
 
-    fountainGeneration();
-    // 1. Add vorticity confinement
-    
 
     #pragma omp parallel sections
     {
@@ -113,7 +111,9 @@ void FluidCube::update(float dt)
             addSource(vZ, vZ0);
         }
     }
-    
+
+    // 1. Add vorticity confinement
+    fountainGeneration();
     addVorticityConfinement(vX0, vY0, vZ0, dt, size, m_vorticityStrength);
 
     // 2. Diffuse velocity
@@ -229,6 +229,10 @@ void FluidCube::update(float dt)
     // Re-mark all obstacle cells with special color to ensure they weren't overwritten
     setObstacleColors(fluidColors);
 
+    if (m_renderMode == 1) {
+        detectShell();
+    }
+
     // Upload both density and color to GPU
     uploadDensityToGPU();
     uploadColorFieldToGPU();
@@ -244,6 +248,58 @@ void FluidCube::densityFade(float dt)
 }
 
 
+
+
+
+void FluidCube::detectShell() {
+    // Create a temporary array to store the shell data
+    std::vector<float> shellDensity(size * size * size, 0.0f);
+    
+    // First, identify shell cells - cells that are fluid but adjacent to non-fluid
+    for (int k = 1; k < size - 1; k++) {
+        for (int j = 1; j < size - 1; j++) {
+            for (int i = 1; i < size - 1; i++) {
+                int idx = index(i, j, k);
+                
+                // Skip processing cells with negligible density
+                if (density[idx] < 0.01f) continue;
+                
+                // Check if this is a shell cell (has at least one neighbor with significantly lower density)
+                bool isShell = false;
+                
+                // Check 6-neighborhood (faces)
+                if (density[index(i+1, j, k)] < 0.01f || 
+                    density[index(i-1, j, k)] < 0.01f ||
+                    density[index(i, j+1, k)] < 0.01f ||
+                    density[index(i, j-1, k)] < 0.01f ||
+                    density[index(i, j, k+1)] < 0.01f ||
+                    density[index(i, j, k-1)] < 0.01f) {
+                    isShell = true;
+                }
+                
+                if (isShell) {
+                    // This is a shell cell - boost its density for rendering
+                    shellDensity[idx] = density[idx] * 2.0f; // Boost opacity
+                }
+            }
+        }
+    }
+    
+    // Store the shell density in a separate texture
+    // If you don't have m_shellDensityTexture defined yet, you'll need to add it
+    if (m_shellDensityTexture == 0) {
+        glGenTextures(1, &m_shellDensityTexture);
+    }
+    
+    glBindTexture(GL_TEXTURE_3D, m_shellDensityTexture);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glTexImage3D(GL_TEXTURE_3D, 0, GL_R32F, size, size, size, 0, GL_RED, GL_FLOAT, shellDensity.data());
+    glBindTexture(GL_TEXTURE_3D, 0);
+}
 
 
 
@@ -461,40 +517,33 @@ void FluidCube::drawVolume(Shader* shader) {
 
 void FluidCube::drawShellOnly(Shader *shader) {
     // Create temporary arrays for shell information
-    std::vector<float> shellDensity(size * size * size, 0.0f);
-    std::vector<float> shellColors(size * size * size, 0.0f);
-
-    // Detect shell cells (cells that have density and at least one neighbor without density)
-    // Using precise threshold for better shell definition
-    for (int k = 1; k < size-1; k++) {
-        for (int j = 1; j < size-1; j++) {
-            for (int i = 1; i < size-1; i++) {
-                int idx = index(i, j, k);
-
-                // Skip cells with very low density
-                if (density[idx] < 0.01f) continue;
-
-                // Check if any of the six adjacent cells has low density
-                bool isShell = false;
-                if (density[index(i-1, j, k)] < 0.01f || density[index(i+1, j, k)] < 0.01f ||
-                    density[index(i, j-1, k)] < 0.01f || density[index(i, j+1, k)] < 0.01f ||
-                    density[index(i, j, k-1)] < 0.01f || density[index(i, j, k+1)] < 0.01f) {
-                    isShell = true;
-                }
-
-                // If it's a shell cell, enhance its density and preserve color
-                if (isShell) {
-                    // Use moderate density enhancement for clarity
-                    shellDensity[idx] = density[idx] * 3.5f;
-                    shellColors[idx] = static_cast<float>(fluidColors[idx]);
-                }
-            }
-        }
+    if (m_shellDensityTexture == 0) {
+        // Generate the shell texture if not already done
+        detectShell();
     }
-
-    // Upload this modified density field and color field to GPU
-    uploadCustomDensityToGPU(shellDensity);
-    uploadCustomColorToGPU(shellColors);
+    
+    // Pass the shell texture to the shader
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_3D, m_shellDensityTexture);
+    
+    // Also pass color texture
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_3D, m_colorTexture);
+    
+    shader->setUniform("densityTex", 0);
+    shader->setUniform("colorTex", 1);
+    shader->setUniform("colorMapType", m_colorMapType);
+    shader->setUniform("renderMode", m_renderMode);
+    shader->setUniform("size", size);
+    
+    // Pass current time for animation effects
+    static float timeValue = 0.0f;
+    timeValue += 0.016f; // Increment by roughly 1/60 second
+    shader->setUniform("time", timeValue);
+    
+    // Draw the fullscreen quad
+    glBindVertexArray(m_fullscreen_vao);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 
 
@@ -696,6 +745,13 @@ void FluidCube::toggleWireframe()
     m_wireframe = !m_wireframe;
 }
 
+void FluidCube::toggleShellRendering() {
+    m_renderMode = 1 - m_renderMode; // Toggle between 0 (volume) and 1 (shell)
+    // Force shell update if shell mode
+    if (m_renderMode == 1) {
+        detectShell();
+    }
+}
 
 void FluidCube::visualizeVelocity() {
     float maxVelocity = 0.0f;

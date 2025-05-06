@@ -411,7 +411,7 @@ void addVorticityConfinement(std::vector<float> &vX, std::vector<float> &vY,
     }
 
     // // Apply boundary conditions
-    // set_bnd(1, vX, N);
-    // set_bnd(2, vY, N);
-    // set_bnd(3, vZ, N);
+    set_bnd(1, vX, N);
+    set_bnd(2, vY, N);
+    set_bnd(3, vZ, N);
 }
