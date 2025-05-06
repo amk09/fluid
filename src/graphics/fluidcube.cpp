@@ -235,6 +235,7 @@ void FluidCube::update(float dt)
 
     // Upload both density and color to GPU
     uploadDensityToGPU();
+    uploadVelocityToGPU();
     uploadColorFieldToGPU();
 }
 
@@ -455,6 +456,39 @@ void FluidCube::uploadColorFieldToGPU() {
     glBindTexture(GL_TEXTURE_3D, 0);
 }
 
+void FluidCube::uploadVelocityToGPU() {
+    if (m_velocityTexture == 0) {
+        glGenTextures(1, &m_velocityTexture);
+    }
+    
+    glBindTexture(GL_TEXTURE_3D, m_velocityTexture);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    
+    // Calculate velocity magnitude
+    std::vector<float> velocityMagnitude(size * size * size);
+    
+    for (int k = 0; k < size; k++) {
+        for (int j = 0; j < size; j++) {
+            for (int i = 0; i < size; i++) {
+                int idx = index(i, j, k);
+                float vx = vX[idx];
+                float vy = vY[idx];
+                float vz = vZ[idx];
+                
+                // Calculate magnitude
+                velocityMagnitude[idx] = sqrt(vx*vx + vy*vy + vz*vz);
+            }
+        }
+    }
+    
+    glTexImage3D(GL_TEXTURE_3D, 0, GL_R32F, size, size, size, 0, 
+                 GL_RED, GL_FLOAT, velocityMagnitude.data());
+    glBindTexture(GL_TEXTURE_3D, 0);
+}
 
 // Upload custom color field for shell rendering
 void FluidCube::uploadCustomColorToGPU(const std::vector<float>& customColors) {
@@ -497,9 +531,15 @@ void FluidCube::drawVolume(Shader* shader) {
     glBindTexture(GL_TEXTURE_3D, m_densityTexture);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_3D, m_colorTexture);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_3D, m_velocityTexture);
 
     shader->setUniform("densityTex", 0);
     shader->setUniform("colorTex", 1);
+    shader->setUniform("velocityTex", 2);
+    shader->setUniform("useVelocityColor", m_useVelocityColor);
+    shader->setUniform("velocityScale", m_velocityScale);
+    shader->setUniform("velocityBlend", m_velocityBlend);
     shader->setUniform("colorMapType", m_colorMapType);
     shader->setUniform("renderMode", m_renderMode);
     shader->setUniform("size", size);
@@ -564,6 +604,7 @@ void FluidCube::clearAllFluids() {
 
     // Update GPU textures
     uploadDensityToGPU();
+    uploadVelocityToGPU();
     uploadColorFieldToGPU();
 }
 

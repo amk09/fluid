@@ -21,6 +21,12 @@ uniform sampler3D colorTex;   // For per-cell color mapping
 uniform mat4 invViewProj;
 uniform float time; // For time-based animation effects
 
+uniform sampler3D velocityTex;        // Velocity magnitude texture
+uniform float velocityScale = 1.0;     // Scale factor for velocity influence
+uniform bool useVelocityColor = false; // Toggle velocity visualization
+uniform float velocityBlend = 0.5;     // Blend between density and velocity colors
+
+
 uniform int fluidStyle;
 
 // Color map types - extended with new gradient effects
@@ -71,6 +77,38 @@ float fbm(vec3 x) {
         a *= 0.5;
     }
     return v;
+}
+
+vec3 getVelocityColor(float velocity) {
+    // Normalize velocity value based on scale
+    float normalizedVel = min(velocity * velocityScale, 1.0);
+    
+    // Create a color gradient from blue (slow) to red (fast)
+    vec3 color;
+    if (normalizedVel < 0.2) {
+        color = mix(vec3(0.0, 0.0, 0.8), vec3(0.0, 0.5, 0.9), normalizedVel * 5.0);
+    } else if (normalizedVel < 0.4) {
+        color = mix(vec3(0.0, 0.5, 0.9), vec3(0.0, 0.8, 0.4), (normalizedVel - 0.2) * 5.0);
+    } else if (normalizedVel < 0.6) {
+        color = mix(vec3(0.0, 0.8, 0.4), vec3(0.9, 0.9, 0.0), (normalizedVel - 0.4) * 5.0);
+    } else if (normalizedVel < 0.8) {
+        color = mix(vec3(0.9, 0.9, 0.0), vec3(0.9, 0.5, 0.0), (normalizedVel - 0.6) * 5.0);
+    } else {
+        color = mix(vec3(0.9, 0.5, 0.0), vec3(0.9, 0.0, 0.0), (normalizedVel - 0.8) * 5.0);
+    }
+    
+    return color;
+}
+
+vec3 blendDensityAndVelocity(vec3 densityColor, vec3 velocityColor, float density) {
+    // Strategy 1: Simple linear blend
+    //return mix(densityColor, velocityColor, velocityBlend);
+    
+    // Strategy 2: Add velocity as highlights (better for visualization)
+    return densityColor + velocityColor * velocityBlend * density;
+    
+    // Strategy 3: Multiply (darkens areas - uncomment to use)
+    //return densityColor * (vec3(1.0) + velocityColor * velocityBlend * 0.5);
 }
 
 // Fresnel effect calculation
@@ -565,6 +603,10 @@ void main() {
 
         // Get the density
         float density = texture(densityTex, texCoord).r;
+        float velocity = 0.0;
+        if (useVelocityColor) {
+            velocity = texture(velocityTex, texCoord).r;
+        }
 
         // Skip low density regions for efficiency
         if (density < 0.01) {
@@ -601,7 +643,7 @@ void main() {
         }
 
 
-
+        
         if (localColorType == 999) {  // Special value for obstacles
             // Use a fixed color for obstacles
             color = vec3(0.4, 0.4, 0.4);  // Simple gray color
@@ -728,12 +770,22 @@ void main() {
         }
         else {
             // Get base color for this fluid type
-            color = getFluidColor(effectiveColorType, depth, density, edge);
-
-            // Get alpha value
+            vec3 densityColor = getFluidColor(effectiveColorType, depth, density, edge);
+    
+            // If velocity coloring is enabled
+            if (useVelocityColor) {
+                vec3 velocityColor = getVelocityColor(velocity);
+                
+                // Blend the colors
+                color = blendDensityAndVelocity(densityColor, velocityColor, density);
+            } else {
+                color = densityColor;
+            }
+            
+            // Get alpha value (keep existing code)
             alphaValue = getAlphaValue(effectiveColorType, density, depth, renderMode);
-
-            // Apply edge highlights
+            
+            // Apply edge highlights (keep existing code)
             color = applyEdgeHighlights(color, effectiveColorType, edge);
 
             // Add special shell rendering effects

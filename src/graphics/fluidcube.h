@@ -68,7 +68,13 @@ public:
 
     // For Offline Rendering
     void restartOfflineRendering();
-
+    void uploadVelocityToGPU();
+    void toggleVelocityColoring() { m_useVelocityColor = !m_useVelocityColor; }
+    void setVelocityScale(float scale) { m_velocityScale = scale; }
+    void setVelocityBlend(float blend) { m_velocityBlend = blend; }
+    bool isUsingVelocityColor() const { return m_useVelocityColor; }
+    float getVelocityScale() const { return m_velocityScale; }
+    float getVelocityBlend() const { return m_velocityBlend; }
 private:
     // Below are the units for OpenGL rendering
     GLuint m_vao;
@@ -77,6 +83,10 @@ private:
     GLuint m_densityTexture;
     GLuint m_colorTexture;  // New texture for color field
     GLuint m_shellDensityTexture; 
+    GLuint m_velocityTexture = 0;
+    bool m_useVelocityColor = true;
+    float m_velocityScale = 3.0f;  // Starting scale - adjust based on your simulation
+    float m_velocityBlend = 0.5f;  // 50% blend initially
     Eigen::Matrix4f m_modelMatrix;
     bool m_wireframe;
     // Plus the unit - voxel or the cell
