@@ -64,9 +64,8 @@ void GLWidget::initializeGL()
     m_shader = new Shader(":/resources/shaders/shader.vert", ":/resources/shaders/shader.frag");
     m_sim.init();
 
-    // Initialize camera with a closer position
-    Eigen::Vector3f eye    = {0, 2, -8};
-    Eigen::Vector3f target = {0, 1,  0};
+    Eigen::Vector3f eye    = {0, 1.5, -10};
+    Eigen::Vector3f target = {0, 0.5,  0};
     m_camera.lookAt(eye, target);
     m_camera.setOrbitPoint(target);
 

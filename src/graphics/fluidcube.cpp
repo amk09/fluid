@@ -5,6 +5,21 @@
 #include "graphics/vectorfield.h"
 #include <iomanip>
 #include <iostream>
+#include <filesystem>  // C++17
+#include <fstream>
+
+namespace fs = std::filesystem;
+
+#define Log(x) std::cout << x << std::endl;
+
+// For offline rendering
+static bool offlineRendering = false; // Just change this
+static bool offlineFileLoaded = false;
+static bool startRenderingOnce = false;
+const int totalFrames = 1500;
+static int frameIndex = 0;
+std::string densityPath = "offline_data/densityFrames.bin";
+std::string colorPath   = "offline_data/colorFrames.bin";
 
 FluidCube::FluidCube()
     : m_vao(0),
@@ -24,8 +39,32 @@ FluidCube::FluidCube()
 {
 }
 
+void FluidCube::fountainGeneration() {
+    int center = size / 2;
+    float radius = size / 6.0f; // Diameter = size / 3
 
+    int range = static_cast<int>(std::ceil(radius)); // Ensure full coverage
 
+    int colorType = m_colorMapType;
+
+    for (int dx = -range; dx <= range; dx++) {
+        for (int dz = -range; dz <= range; dz++) {
+            float dist2 = dx * dx + dz * dz;
+            if (dist2 > radius * radius) continue;
+
+            int x = center + dx;
+            int z = center + dz;
+
+            for (int y = 1; y <= 2; y++) {
+                float densityAmount = 0.7f;
+                float velocityAmount = 10.0f + (rand() / (float)RAND_MAX) * 2.0f;
+
+                addDensityWithColor(x, y, z, densityAmount, colorType);
+                addVelocity(x, y, z, 0.0f, velocityAmount, 0.0f);
+            }
+        }
+    }
+}
 
 void FluidCube::draw(Shader *shader)
 {
@@ -36,20 +75,238 @@ void FluidCube::draw(Shader *shader)
     drawVolume(shader);
 }
 
-
-void FluidCube::addSource(vector<float> x, vector<float> x0)
+void FluidCube::update(float dt)
 {
-    for (int i = 0; i < totalCells; i++)
-    {
-        x[i] += dt * x0[i];
+    if ((offlineRendering && offlineFileLoaded) || startRenderingOnce) {
+        // Load Density and Color for next stage (just move on to just one place for each update call, start from zero. and stop in the end.)
+        if (frameIndex < densityFrames.size()) {
+            density = densityFrames[frameIndex];
+            fluidColors = colorFrames[frameIndex];
+
+            uploadDensityToGPU();
+            uploadColorFieldToGPU();
+
+            frameIndex++;
+            Log(frameIndex);
+        }
+        return;  // Skip simulation logic
     }
+
+    fountainGeneration();
+    // 1. Add vorticity confinement
+    addVorticityConfinement(vX0, vY0, vZ0, dt, size, m_vorticityStrength);
+
+    #pragma omp parallel sections
+    {
+    #pragma omp section
+        {
+            addSource(vX, vX0);
+        }
+
+    #pragma omp section
+        {
+            addSource(vY, vY0);
+        }
+
+    #pragma omp section
+        {
+            addSource(vZ, vZ0);
+        }
+    }
+
+    // 2. Diffuse velocity
+    #pragma omp parallel sections
+    {
+        #pragma omp section
+        {
+            diffuse_velocity(1, vX0, vX, visc, dt, iter, size);
+        }
+
+        #pragma omp section
+        {
+            diffuse_velocity(2, vY0, vY, visc, dt, iter, size);
+        }
+
+        #pragma omp section
+        {
+            diffuse_velocity(3, vZ0, vZ, visc, dt, iter, size);
+        }
+    }
+
+    // 3. Project velocity
+    project(vX0, vY0, vZ0, vX, vY, iter, size);
+
+    // 4. Advect velocity
+    #pragma omp parallel sections
+    {
+        #pragma omp section
+        {
+            advect(1, vX, vX0, vX0, vY0, vZ0, dt, size);
+        }
+
+        #pragma omp section
+        {
+            advect(2, vY, vY0, vX0, vY0, vZ0, dt, size);
+        }
+
+        #pragma omp section
+        {
+            advect(3, vZ, vZ0, vX0, vY0, vZ0, dt, size);
+        }
+    }
+
+    // 5. Project again
+    project(vX, vY, vZ, vX0, vY0, iter, size);
+
+    // Clean the velocity value in v0
+    empty_vel();
+
+    addSource(density, density0);
+
+    // 6. Diffuse density
+    diffuse_density(0, density0, density, diff, dt, iter, size);
+
+    // 7. Advect density
+    advect(0, density, density0, vX, vY, vZ, dt, size);
+
+    // Fade the density value in density: To avoid the inaccurate calculation's increasing density
+    densityFade(dt);
+
+    // Make Sure Obstacle's Density is 1.0
+    densityInsideObstacles(density);
+
+    // Clean the density value in density0
+    empty_den();
+
+    // Handle boundary cells - set density and color to 0
+    for (int k = 0; k < size; k++) {
+        for (int j = 0; j < size; j++) {
+            // X boundaries
+            density[index(0, j, k)] = 0.0f;
+            density[index(size-1, j, k)] = 0.0f;
+            fluidColors[index(0, j, k)] = 0;
+            fluidColors[index(size-1, j, k)] = 0;
+
+            // Y boundaries
+            density[index(j, 0, k)] = 0.0f;
+            density[index(j, size-1, k)] = 0.0f;
+            fluidColors[index(j, 0, k)] = 0;
+            fluidColors[index(j, size-1, k)] = 0;
+
+            // Z boundaries
+            density[index(j, k, 0)] = 0.0f;
+            density[index(j, k, size-1)] = 0.0f;
+            fluidColors[index(j, k, 0)] = 0;
+            fluidColors[index(j, k, size-1)] = 0;
+        }
+    }
+
+    // First mark all obstacle cells with special color
+    setObstacleColors(fluidColors);
+
+    // Perform extra color enhancement to fix possible inconsistencies
+    for (int i = 0; i < totalCells; i++) {
+        // Skip obstacle and boundary cells
+        if (isObstacle(i)) continue;
+
+        // Skip boundary cells - extra check
+        int x = i % size;
+        int y = (i / size) % size;
+        int z = i / (size * size);
+        if (x == 0 || x == size-1 || y == 0 || y == size-1 || z == 0 || z == size-1) continue;
+
+        // For cells with significant density but no color, force default color
+        if (density[i] > 0.03f && fluidColors[i] == 0) {
+            fluidColors[i] = m_colorMapType;
+        }
+    }
+
+    // Propagate colors to ensure they follow density properly
+    propagateColors();
+
+    // Re-mark all obstacle cells with special color to ensure they weren't overwritten
+    setObstacleColors(fluidColors);
+
+    // Upload both density and color to GPU
+    uploadDensityToGPU();
+    uploadColorFieldToGPU();
 }
 
+// TODO::Change the logic here to reduce the density fade speed
 void FluidCube::densityFade(float dt)
 {
     for (int i = 0; i < totalCells; i++)
     {
-        density[i] *= (1 - 0.5*dt);
+        density[i] *= (1 - 1.5*dt);
+    }
+}
+
+
+
+
+
+
+
+
+// Below are the functions that do not need to change
+
+
+
+
+
+
+
+
+
+
+
+// Add initialization of color field in init method
+void FluidCube::init(int size, float diffuse, float viscosity){
+    this->size = size;
+    this->diff = diffuse;
+    this->visc= viscosity;
+    this->totalCells = size*size*size;
+
+    offlineRendering = size > 32;
+
+    // We resize the density and velocity vectors with 0.0f value
+    density0.resize(totalCells, 0.0f);
+    density.resize(totalCells, 0.0f);
+
+    vX0.resize(totalCells, 0.0f);
+    vX.resize(totalCells, 0.0f);
+
+    vY0.resize(totalCells, 0.0f);
+    vY.resize(totalCells, 0.0f);
+
+    vZ0.resize(totalCells, 0.0f);
+    vZ.resize(totalCells, 0.0f);
+
+    // Initialize color field with zeros
+    fluidColors.resize(totalCells, 0);
+    m_colorTexture = 0;
+
+    initFullscreenQuad();
+
+    // Obstacle Init
+    initObstacleMap(totalCells);
+
+    // Inject Density and then upload it to GPU
+    uploadDensityToGPU();
+    // Initialize color texture
+    uploadColorFieldToGPU();
+
+    if(offlineRendering){
+        // Offline Calculation
+        offRenderingCheck();
+    }
+}
+
+void FluidCube::addSource(vector<float>& x, vector<float>& x0)
+{
+    for (int i = 0; i < totalCells; i++)
+    {
+        x[i] += dt * x0[i];
     }
 }
 
@@ -66,7 +323,6 @@ void FluidCube::empty_den(){
         density0[i] = 0.0f;
     }
 }
-
 
 
 // Modified addDensity to use addDensityWithColor
@@ -259,183 +515,6 @@ void FluidCube::clearAllFluids() {
     uploadDensityToGPU();
     uploadColorFieldToGPU();
 }
-
-// Add initialization of color field in init method
-void FluidCube::init(int size, float diffuse, float viscosity){
-    this->size = size;
-    this->diff = diffuse;
-    this->visc= viscosity;
-    this->totalCells = size*size*size;
-
-    // We resize the density and velocity vectors with 0.0f value
-    density0.resize(totalCells, 0.0f);
-    density.resize(totalCells, 0.0f);
-
-    vX0.resize(totalCells, 0.0f);
-    vX.resize(totalCells, 0.0f);
-
-    vY0.resize(totalCells, 0.0f);
-    vY.resize(totalCells, 0.0f);
-
-    vZ0.resize(totalCells, 0.0f);
-    vZ.resize(totalCells, 0.0f);
-
-    // Initialize color field with zeros
-    fluidColors.resize(totalCells, 0);
-    m_colorTexture = 0;
-
-    initFullscreenQuad();
-
-    // Obstacle Init
-    initObstacleMap(totalCells);
-
-    // Inject Density and then upload it to GPU
-    uploadDensityToGPU();
-    // Initialize color texture
-    uploadColorFieldToGPU();
-}
-
-void FluidCube::update(float dt)
-{
-    // 1. Add vorticity confinement
-    addVorticityConfinement(vX0, vY0, vZ0, dt, size, m_vorticityStrength);
-
-#pragma omp parallel sections
-    {
-#pragma omp section
-        {
-            addSource(vX, vX0);
-        }
-
-#pragma omp section
-        {
-            addSource(vY, vY0);
-        }
-
-#pragma omp section
-        {
-            addSource(vZ, vZ0);
-        }
-    }
-
-    // 2. Diffuse velocity
-#pragma omp parallel sections
-    {
-#pragma omp section
-        {
-            diffuse_velocity(1, vX0, vX, visc, dt, iter, size);
-        }
-
-#pragma omp section
-        {
-            diffuse_velocity(2, vY0, vY, visc, dt, iter, size);
-        }
-
-#pragma omp section
-        {
-            diffuse_velocity(3, vZ0, vZ, visc, dt, iter, size);
-        }
-    }
-
-    // 3. Project velocity
-    project(vX0, vY0, vZ0, vX, vY, iter, size);
-
-    // 4. Advect velocity
-#pragma omp parallel sections
-    {
-#pragma omp section
-        {
-            advect(1, vX, vX0, vX0, vY0, vZ0, dt, size);
-        }
-
-#pragma omp section
-        {
-            advect(2, vY, vY0, vX0, vY0, vZ0, dt, size);
-        }
-
-#pragma omp section
-        {
-            advect(3, vZ, vZ0, vX0, vY0, vZ0, dt, size);
-        }
-    }
-
-    // 5. Project again
-    project(vX, vY, vZ, vX0, vY0, iter, size);
-
-    // Clean the velocity value in v0
-    empty_vel();
-
-    addSource(density, density0);
-
-    // 6. Diffuse density
-    diffuse_density(0, density0, density, diff, dt, iter, size);
-
-    // 7. Advect density
-    advect(0, density, density0, vX, vY, vZ, dt, size);
-
-    // Fade the density value in density: To avoid the inaccurate calculation's increasing density
-    densityFade(dt);
-
-    // Make Sure Obstacle's Density is 1.0
-    densityInsideObstacles(density);
-
-    // Clean the density value in density0
-    empty_den();
-
-    // Handle boundary cells - set density and color to 0
-    for (int k = 0; k < size; k++) {
-        for (int j = 0; j < size; j++) {
-            // X boundaries
-            density[index(0, j, k)] = 0.0f;
-            density[index(size-1, j, k)] = 0.0f;
-            fluidColors[index(0, j, k)] = 0;
-            fluidColors[index(size-1, j, k)] = 0;
-
-            // Y boundaries
-            density[index(j, 0, k)] = 0.0f;
-            density[index(j, size-1, k)] = 0.0f;
-            fluidColors[index(j, 0, k)] = 0;
-            fluidColors[index(j, size-1, k)] = 0;
-
-            // Z boundaries
-            density[index(j, k, 0)] = 0.0f;
-            density[index(j, k, size-1)] = 0.0f;
-            fluidColors[index(j, k, 0)] = 0;
-            fluidColors[index(j, k, size-1)] = 0;
-        }
-    }
-
-    // First mark all obstacle cells with special color
-    setObstacleColors(fluidColors);
-
-    // Perform extra color enhancement to fix possible inconsistencies
-    for (int i = 0; i < totalCells; i++) {
-        // Skip obstacle and boundary cells
-        if (isObstacle(i)) continue;
-
-        // Skip boundary cells - extra check
-        int x = i % size;
-        int y = (i / size) % size;
-        int z = i / (size * size);
-        if (x == 0 || x == size-1 || y == 0 || y == size-1 || z == 0 || z == size-1) continue;
-
-        // For cells with significant density but no color, force default color
-        if (density[i] > 0.03f && fluidColors[i] == 0) {
-            fluidColors[i] = m_colorMapType;
-        }
-    }
-
-    // Propagate colors to ensure they follow density properly
-    propagateColors();
-
-    // Re-mark all obstacle cells with special color to ensure they weren't overwritten
-    setObstacleColors(fluidColors);
-
-    // Upload both density and color to GPU
-    uploadDensityToGPU();
-    uploadColorFieldToGPU();
-}
-
 
 void FluidCube::propagateColors() {
     // For each cell, if it has significant density but no color assigned yet,
@@ -787,4 +866,61 @@ void FluidCube::clearObstacles() {
     // Update GPU textures immediately
     uploadDensityToGPU();
     uploadColorFieldToGPU();
+}
+
+
+void FluidCube::offRenderingCheck() {
+    namespace fs = std::filesystem;
+
+    std::string densityPath = "offline_data/densityFrames.bin";
+    std::string colorPath   = "offline_data/colorFrames.bin";
+    fs::create_directory("offline_data");
+
+    if (fs::exists(densityPath) && fs::exists(colorPath)) {
+        offlineFileLoaded = true;
+        // Load from file
+        std::ifstream dFile(densityPath, std::ios::binary);
+        std::ifstream cFile(colorPath, std::ios::binary);
+
+        int numFrames = 0;
+        dFile.read(reinterpret_cast<char*>(&numFrames), sizeof(int));
+
+        for (int f = 0; f < numFrames; ++f) {
+            std::vector<float> densityFrame(totalCells);
+            std::vector<int> colorFrame(totalCells);
+            dFile.read(reinterpret_cast<char*>(densityFrame.data()), totalCells * sizeof(float));
+            cFile.read(reinterpret_cast<char*>(colorFrame.data()), totalCells * sizeof(int));
+            densityFrames.push_back(std::move(densityFrame));
+            colorFrames.push_back(std::move(colorFrame));
+        }
+
+        Log("Loaded offline frames from disk.");
+    } else {
+        offlineFileLoaded = false;
+        // Run simulation and save
+        for (int i = 0; i < totalFrames; ++i) {
+            update(0.00833f); // 120 FPS
+            Log(i);
+            densityFrames.push_back(density);
+            colorFrames.push_back(fluidColors);
+        }
+
+        std::ofstream dFile(densityPath, std::ios::binary);
+        std::ofstream cFile(colorPath, std::ios::binary);
+
+        int numFrames = densityFrames.size();
+        dFile.write(reinterpret_cast<const char*>(&numFrames), sizeof(int));
+
+        for (int f = 0; f < numFrames; ++f) {
+            dFile.write(reinterpret_cast<const char*>(densityFrames[f].data()), totalCells * sizeof(float));
+            cFile.write(reinterpret_cast<const char*>(colorFrames[f].data()), totalCells * sizeof(int));
+        }
+
+        Log("Saved offline frames to disk.");
+        startRenderingOnce = true;
+    }
+}
+
+void FluidCube::restartOfflineRendering(){
+    frameIndex = 0;
 }

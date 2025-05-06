@@ -64,6 +64,8 @@ public:
     int getSize() const {return size;}
     std::vector<float>& getDensity() { return density; }
 
+    // For Offline Rendering
+    void restartOfflineRendering();
 
 private:
     // Below are the units for OpenGL rendering
@@ -105,7 +107,7 @@ private:
     // Below are the main functions should be done in Stable Fluids
     int iter = 4; // This is the key parameter to solve stable formula (20 in the paper; 10 in the video; 4 in the website)
 
-    float m_vorticityStrength = 0.5f;  // Default vorticity strength
+    float m_vorticityStrength = 100.0f;  // Default vorticity strength
 
     // Some getters here only to reduce the difficulty of extracting data
     int index(int x, int y, int z);
@@ -130,7 +132,7 @@ private:
     bool findBetterColorFromNeighbors(int idx, int i, int j, int k);
 
     // Handle the increasing density bug caused by inaccurate calculation
-    void addSource(vector<float> x, vector<float> x0);
+    void addSource(vector<float>& x, vector<float>& x0);
     void empty_vel();
     void empty_den();
     void densityFade(float dt);
@@ -138,6 +140,13 @@ private:
     // Some tests
     void test();
     void propagateColors();
+
+    void fountainGeneration();
+
+    // Offline Rendering
+    std::vector<std::vector<float>> densityFrames;
+    std::vector<std::vector<int>> colorFrames;
+    void offRenderingCheck();
 };
 
 inline int FluidCube::getColorMap() const { return m_colorMapType; }

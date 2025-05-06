@@ -762,7 +762,7 @@ void main() {
         finalColor.a += (1.0 - finalColor.a) * alphaValue;
 
         // Exit earlier if the alpha is already large enough
-        if (finalColor.a > 0.95)
+        if (finalColor.a > 0.80)
             break;
 
         t += stepSize;

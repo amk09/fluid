@@ -12,11 +12,11 @@ void Simulation::init()
 {
     // Initialize the fluid with much lower diffusion and viscosity parameters
     // This will make the fluid less likely to spread out horizontally
-    gridSize = 52;
+    gridSize = 32;
     obstacleX = gridSize / 2;
     obstacleY = 1;
     obstacleZ = gridSize / 2;
-    fluidCube.init(gridSize, 0.00001, 0.00001);
+    fluidCube.init(gridSize, 0.000001, 0.000001);
 }
 
 void Simulation::handleMousePress(int x, int y, int width, int height) {
@@ -71,6 +71,7 @@ void Simulation::addDensityWithGaussian(float centerX, float centerY, float cent
 // Add method to clear all fluids
 void Simulation::clearAllFluids() {
     fluidCube.clearAllFluids();
+    fluidCube.restartOfflineRendering();
 }
 
 
@@ -105,7 +106,8 @@ void Simulation::handleMouseMove(int x, int y, int width, int height)
 
 void Simulation::addVelocityWithGaussian(float centerX, float centerY, float centerZ,
                                          float velX, float velY, float velZ, float sigma) {
-    int radius = static_cast<int>(sigma * 1.8f);
+
+int radius = static_cast<int>(sigma * 1.8f);
 #pragma omp parallel for collapse(3)
     for (int dz = -radius; dz <= radius; dz++) {
         for (int dy = -radius; dy <= radius; dy++) {
@@ -128,8 +130,6 @@ void Simulation::addVelocityWithGaussian(float centerX, float centerY, float cen
         }
     }
 }
-
-
 
 
 void Simulation::addObstacle() {
