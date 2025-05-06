@@ -392,28 +392,26 @@ void addVorticityConfinement(std::vector<float> &vX, std::vector<float> &vY,
                 float dz = (curlMagnitude[IX(i, j, k+1, N)] - curlMagnitude[IX(i, j, k-1, N)]) * 0.5f;
 
                 // Normalize gradient
-                float length = sqrtf(dx*dx + dy*dy + dz*dz);
-                if (length > 0.000001f) {
-                    dx /= length;
-                    dy /= length;
-                    dz /= length;
+                float length = 1.0f/(sqrtf(dx*dx + dy*dy + dz*dz)+0.0000001f);
+                dx *= length;
+                dy *= length;
+                dz *= length;
+                // Calculate force as cross product: N × ω (normalized gradient × curl)
+                float forceX = (dy * curlZ[idx] - dz * curlY[idx]) * vorticityStrength;
+                float forceY = (dz * curlX[idx] - dx * curlZ[idx]) * vorticityStrength;
+                float forceZ = (dx * curlY[idx] - dy * curlX[idx]) * vorticityStrength;
 
-                    // Calculate force as cross product: N × ω (normalized gradient × curl)
-                    float forceX = (dy * curlZ[idx] - dz * curlY[idx]) * vorticityStrength;
-                    float forceY = (dz * curlX[idx] - dx * curlZ[idx]) * vorticityStrength;
-                    float forceZ = (dx * curlY[idx] - dy * curlX[idx]) * vorticityStrength;
+                // Apply force scaled by time step
+                vX[idx] += forceX * dt;
+                vY[idx] += forceY * dt;
+                vZ[idx] += forceZ * dt;
 
-                    // Apply force scaled by time step
-                    vX[idx] += forceX * dt;
-                    vY[idx] += forceY * dt;
-                    vZ[idx] += forceZ * dt;
-                }
             }
         }
     }
 
-    // Apply boundary conditions
-    set_bnd(1, vX, N);
-    set_bnd(2, vY, N);
-    set_bnd(3, vZ, N);
+    // // Apply boundary conditions
+    // set_bnd(1, vX, N);
+    // set_bnd(2, vY, N);
+    // set_bnd(3, vZ, N);
 }
