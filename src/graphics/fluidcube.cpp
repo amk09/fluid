@@ -94,7 +94,7 @@ void FluidCube::update(float dt)
 
     fountainGeneration();
     // 1. Add vorticity confinement
-    addVorticityConfinement(vX0, vY0, vZ0, dt, size, m_vorticityStrength);
+    
 
     #pragma omp parallel sections
     {
@@ -113,6 +113,8 @@ void FluidCube::update(float dt)
             addSource(vZ, vZ0);
         }
     }
+    
+    addVorticityConfinement(vX0, vY0, vZ0, dt, size, m_vorticityStrength);
 
     // 2. Diffuse velocity
     #pragma omp parallel sections
