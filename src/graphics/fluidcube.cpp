@@ -20,6 +20,7 @@ const int totalFrames = 1500;
 static int frameIndex = 0;
 std::string densityPath = "offline_data/densityFrames.bin";
 std::string colorPath   = "offline_data/colorFrames.bin";
+std::string velocityPath = "offline_data/velocityFrames.bin"; 
 
 FluidCube::FluidCube()
     : m_vao(0),
@@ -83,10 +84,24 @@ void FluidCube::update(float dt)
         if (frameIndex < densityFrames.size()) {
             density = densityFrames[frameIndex];
             fluidColors = colorFrames[frameIndex];
-
+            velocity = velocityFrames[frameIndex];
             uploadDensityToGPU();
             uploadColorFieldToGPU();
 
+            if (m_velocityTexture == 0)
+                glGenTextures(1, &m_velocityTexture);
+                
+            setupTextureParameters(m_velocityTexture);
+            glTexImage3D(
+                GL_TEXTURE_3D, 0, GL_R32F,
+                size, size, size, 0, GL_RED, GL_FLOAT,
+                velocity.data()
+            );
+            
+            if (m_renderMode == 1) {
+                detectShell();
+            }
+            
             frameIndex++;
             Log(frameIndex);
         }
@@ -537,9 +552,11 @@ void FluidCube::drawVolume(Shader* shader) {
     shader->setUniform("densityTex", 0);
     shader->setUniform("colorTex", 1);
     shader->setUniform("velocityTex", 2);
+
     shader->setUniform("useVelocityColor", m_useVelocityColor);
     shader->setUniform("velocityScale", m_velocityScale);
     shader->setUniform("velocityBlend", m_velocityBlend);
+    
     shader->setUniform("colorMapType", m_colorMapType);
     shader->setUniform("renderMode", m_renderMode);
     shader->setUniform("size", size);
@@ -973,6 +990,8 @@ void FluidCube::offRenderingCheck() {
 
     std::string densityPath = "offline_data/densityFrames.bin";
     std::string colorPath   = "offline_data/colorFrames.bin";
+    std::string velocityPath = "offline_data/velocityFrames.bin"; 
+
     fs::create_directory("offline_data");
 
     if (fs::exists(densityPath) && fs::exists(colorPath)) {
@@ -980,6 +999,7 @@ void FluidCube::offRenderingCheck() {
         // Load from file
         std::ifstream dFile(densityPath, std::ios::binary);
         std::ifstream cFile(colorPath, std::ios::binary);
+        std::ifstream vFile(velocityPath, std::ios::binary);
 
         int numFrames = 0;
         dFile.read(reinterpret_cast<char*>(&numFrames), sizeof(int));
@@ -987,10 +1007,13 @@ void FluidCube::offRenderingCheck() {
         for (int f = 0; f < numFrames; ++f) {
             std::vector<float> densityFrame(totalCells);
             std::vector<int> colorFrame(totalCells);
+            std::vector<float> velocityFrame(totalCells);
             dFile.read(reinterpret_cast<char*>(densityFrame.data()), totalCells * sizeof(float));
             cFile.read(reinterpret_cast<char*>(colorFrame.data()), totalCells * sizeof(int));
+            vFile.read(reinterpret_cast<char*>(velocityFrame.data()), totalCells * sizeof(float));
             densityFrames.push_back(std::move(densityFrame));
             colorFrames.push_back(std::move(colorFrame));
+            velocityFrames.push_back(std::move(velocityFrame));
         }
 
         Log("Loaded offline frames from disk.");
@@ -1002,10 +1025,20 @@ void FluidCube::offRenderingCheck() {
             Log(i);
             densityFrames.push_back(density);
             colorFrames.push_back(fluidColors);
+            std::vector<float> velocityMagnitudes(totalCells);
+            for (int j = 0; j < totalCells; j++) {
+                float vx = vX[j];
+                float vy = vY[j];
+                float vz = vZ[j];
+                velocityMagnitudes[j] = sqrt(vx*vx + vy*vy + vz*vz);
+            }
+            velocityFrames.push_back(std::move(velocityMagnitudes));
+
         }
 
         std::ofstream dFile(densityPath, std::ios::binary);
         std::ofstream cFile(colorPath, std::ios::binary);
+        std::ofstream vFile(velocityPath, std::ios::binary);
 
         int numFrames = densityFrames.size();
         dFile.write(reinterpret_cast<const char*>(&numFrames), sizeof(int));
@@ -1013,6 +1046,8 @@ void FluidCube::offRenderingCheck() {
         for (int f = 0; f < numFrames; ++f) {
             dFile.write(reinterpret_cast<const char*>(densityFrames[f].data()), totalCells * sizeof(float));
             cFile.write(reinterpret_cast<const char*>(colorFrames[f].data()), totalCells * sizeof(int));
+            vFile.write(reinterpret_cast<const char*>(velocityFrames[f].data()), totalCells * sizeof(float));
+
         }
 
         Log("Saved offline frames to disk.");

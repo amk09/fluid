@@ -275,6 +275,33 @@ void GLWidget::keyPressEvent(QKeyEvent *event)
         std::cout << "Move Backward (Z--)" << std::endl;
         break;
 
+    case Qt::Key_N: 
+        m_sim.fluidCube.toggleVelocityColoring();
+        std::cout << "Velocity Coloring: " << (m_sim.fluidCube.isUsingVelocityColor() ? "ON" : "OFF") << std::endl;
+        break;
+        
+    case Qt::Key_J: // Decrease velocity scale
+        m_sim.fluidCube.setVelocityScale(std::max(0.2f, m_sim.fluidCube.getVelocityScale() - 0.2f));
+        std::cout << "Velocity Scale: " << m_sim.fluidCube.getVelocityScale() << std::endl;
+        break;
+        
+    case Qt::Key_K: // Increase velocity scale
+        m_sim.fluidCube.setVelocityScale(m_sim.fluidCube.getVelocityScale() + 0.2f);
+        std::cout << "Velocity Scale: " << m_sim.fluidCube.getVelocityScale() << std::endl;
+        break;
+        
+    case Qt::Key_H: // Decrease velocity blend
+        m_sim.fluidCube.setVelocityBlend(std::max(0.0f, m_sim.fluidCube.getVelocityBlend() - 0.1f));
+        std::cout << "Velocity Blend: " << m_sim.fluidCube.getVelocityBlend() << std::endl;
+        break;
+        
+    case Qt::Key_U: // Increase velocity blend
+        m_sim.fluidCube.setVelocityBlend(std::min(1.0f, m_sim.fluidCube.getVelocityBlend() + 0.1f));
+        std::cout << "Velocity Blend: " << m_sim.fluidCube.getVelocityBlend() << std::endl;
+        break;
+        
+
+
     // Add clear fluid shortcuts
     case Qt::Key_Space:
     case Qt::Key_Delete:

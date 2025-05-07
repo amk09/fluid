@@ -116,7 +116,8 @@ private:
     vector<float> vZ0; // Previous z-direction velocity
     vector<float> vZ; // Current z-direction velocity
     vector<int> fluidColors; // Color map type for each cell
-
+    vector<float> velocity; // Velocity field for the fluid
+    
     // Below are the main functions should be done in Stable Fluids
     int iter = 4; // This is the key parameter to solve stable formula (20 in the paper; 10 in the video; 4 in the website)
 
@@ -159,6 +160,7 @@ private:
     // Offline Rendering
     std::vector<std::vector<float>> densityFrames;
     std::vector<std::vector<int>> colorFrames;
+    std::vector<std::vector<float>> velocityFrames;
     void offRenderingCheck();
 };
 
