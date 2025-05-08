@@ -65,9 +65,12 @@ void GLWidget::initializeGL()
     m_sim.init();
 
     Eigen::Vector3f eye    = {0, 1.5, -10};
-    Eigen::Vector3f target = {0, 0.5,  0};
+    Eigen::Vector3f target = {0.5, 0.5,  0.5};
     m_camera.lookAt(eye, target);
+
+    // Auto Camera OrbitPoint
     m_camera.setOrbitPoint(target);
+    m_camera.setIsOrbiting(true);
 
     m_camera.setPerspective(120, width() / static_cast<float>(height()), 0.1, 50);
 
@@ -318,14 +321,22 @@ void GLWidget::tick()
         accumulatedTime -= fixedDelta;
     }
 
-    // Move camera
-    auto look = m_camera.getLook();
-    look.y() = 0;
-    look.normalize();
-    Eigen::Vector3f perp(-look.z(), 0, look.x());
-    Eigen::Vector3f moveVec = m_forward * look.normalized() + m_sideways * perp.normalized() + m_vertical * Eigen::Vector3f::UnitY();
-    moveVec *= deltaSeconds;
-    m_camera.move(moveVec);
+    // Auto Camera
+    if (m_camera.getIsOrbiting()) {
+        Eigen::Vector3f target = {0, 0,  0};
+        Eigen::AngleAxisf rotation_y(M_PI/ 360, Eigen::Vector3f::UnitY());
+        m_camera.setPosition( rotation_y.toRotationMatrix() * m_camera.getPosition());
+        m_camera.lookAt(m_camera.getPosition(), target);
+    }
+
+    // // Move camera
+    // auto look = m_camera.getLook();
+    // look.y() = 0;
+    // look.normalize();
+    // Eigen::Vector3f perp(-look.z(), 0, look.x());
+    // Eigen::Vector3f moveVec = m_forward * look.normalized() + m_sideways * perp.normalized() + m_vertical * Eigen::Vector3f::UnitY();
+    // moveVec *= deltaSeconds;
+    // m_camera.move(moveVec);
 
     // Flag this view for repainting (Qt will call paintGL() soon after)
     update();

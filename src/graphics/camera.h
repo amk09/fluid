@@ -29,6 +29,11 @@ public:
     void setPerspective(float fovY, float aspect, float near, float far);
     void setAspect(float aspect);
 
+    const Eigen::Vector3f &getPosition() const { return m_position; }
+    const Eigen::Vector3f &getOrbitPoint() const { return m_orbitPoint; }
+    float getZoom() const { return m_zoom; }
+
+
 private:
     void updateLook();
     void updatePitchAndYaw();

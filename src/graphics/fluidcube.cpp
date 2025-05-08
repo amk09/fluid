@@ -20,12 +20,14 @@ const int totalFrames = 1500;
 static int frameIndex = 0;
 std::string densityPath = "offline_data/densityFrames.bin";
 std::string colorPath   = "offline_data/colorFrames.bin";
+std::string velocityPath = "offline_data/velocityFrames.bin";
 
 FluidCube::FluidCube()
     : m_vao(0),
     m_vbo(0),
     m_ibo(0),
     m_densityTexture(0),
+    m_shellDensityTexture(0),
     m_voxelVao(0),
     m_voxelVbo(0),
     m_voxelIbo(0),
@@ -66,6 +68,33 @@ void FluidCube::fountainGeneration() {
     }
 }
 
+void FluidCube::fountainGenerationTopDown() {
+    int center = size / 2;
+    float radius = size / 6.0f;
+
+    int range = static_cast<int>(std::ceil(radius));
+    int colorType = m_colorMapType;
+
+    for (int dx = -range; dx <= range; dx++) {
+        for (int dz = -range; dz <= range; dz++) {
+            float dist2 = dx * dx + dz * dz;
+            if (dist2 > radius * radius) continue;
+
+            int x = center + dx;
+            int z = center + dz;
+
+            int y = size - 3; // Topmost usable layer
+
+            float densityAmount = 0.7f;
+            float velocityAmount = - 10.0f - (rand() / (float)RAND_MAX) * 2.0f; // spray downward
+
+            addDensityWithColor(x, y, z, densityAmount, colorType);
+            addVelocity(x, y, z, 0.0f, velocityAmount, 0.0f);
+        }
+    }
+}
+
+
 void FluidCube::draw(Shader *shader)
 {
     // // For Voxel
@@ -82,54 +111,68 @@ void FluidCube::update(float dt)
         if (frameIndex < densityFrames.size()) {
             density = densityFrames[frameIndex];
             fluidColors = colorFrames[frameIndex];
-
+            velocity = velocityFrames[frameIndex];
             uploadDensityToGPU();
             uploadColorFieldToGPU();
 
+            if (m_velocityTexture == 0)
+                glGenTextures(1, &m_velocityTexture);
+
+            setupTextureParameters(m_velocityTexture);
+            glTexImage3D(
+                GL_TEXTURE_3D, 0, GL_R32F,
+                size, size, size, 0, GL_RED, GL_FLOAT,
+                velocity.data()
+                );
+
+            if (m_renderMode == 1) {
+                detectShell();
+            }
+
             frameIndex++;
-            Log(frameIndex);
+            // Log(frameIndex);
         }
         return;  // Skip simulation logic
     }
 
-    fountainGeneration();
-    // 1. Add vorticity confinement
-    
 
-    #pragma omp parallel sections
+#pragma omp parallel sections
     {
-    #pragma omp section
+#pragma omp section
         {
             addSource(vX, vX0);
         }
 
-    #pragma omp section
+#pragma omp section
         {
             addSource(vY, vY0);
         }
 
-    #pragma omp section
+#pragma omp section
         {
             addSource(vZ, vZ0);
         }
     }
-    
+
+    // 1. Add vorticity confinement
+    fountainGeneration();
+    // fountainGenerationTopDown();
     addVorticityConfinement(vX0, vY0, vZ0, dt, size, m_vorticityStrength);
 
     // 2. Diffuse velocity
-    #pragma omp parallel sections
+#pragma omp parallel sections
     {
-        #pragma omp section
+#pragma omp section
         {
             diffuse_velocity(1, vX0, vX, visc, dt, iter, size);
         }
 
-        #pragma omp section
+#pragma omp section
         {
             diffuse_velocity(2, vY0, vY, visc, dt, iter, size);
         }
 
-        #pragma omp section
+#pragma omp section
         {
             diffuse_velocity(3, vZ0, vZ, visc, dt, iter, size);
         }
@@ -139,19 +182,19 @@ void FluidCube::update(float dt)
     project(vX0, vY0, vZ0, vX, vY, iter, size);
 
     // 4. Advect velocity
-    #pragma omp parallel sections
+#pragma omp parallel sections
     {
-        #pragma omp section
+#pragma omp section
         {
             advect(1, vX, vX0, vX0, vY0, vZ0, dt, size);
         }
 
-        #pragma omp section
+#pragma omp section
         {
             advect(2, vY, vY0, vX0, vY0, vZ0, dt, size);
         }
 
-        #pragma omp section
+#pragma omp section
         {
             advect(3, vZ, vZ0, vX0, vY0, vZ0, dt, size);
         }
@@ -229,8 +272,13 @@ void FluidCube::update(float dt)
     // Re-mark all obstacle cells with special color to ensure they weren't overwritten
     setObstacleColors(fluidColors);
 
+    if (m_renderMode == 1) {
+        detectShell();
+    }
+
     // Upload both density and color to GPU
     uploadDensityToGPU();
+    uploadVelocityToGPU();
     uploadColorFieldToGPU();
 }
 
@@ -244,6 +292,58 @@ void FluidCube::densityFade(float dt)
 }
 
 
+
+
+
+void FluidCube::detectShell() {
+    // Create a temporary array to store the shell data
+    std::vector<float> shellDensity(size * size * size, 0.0f);
+
+    // First, identify shell cells - cells that are fluid but adjacent to non-fluid
+    for (int k = 1; k < size - 1; k++) {
+        for (int j = 1; j < size - 1; j++) {
+            for (int i = 1; i < size - 1; i++) {
+                int idx = index(i, j, k);
+
+                // Skip processing cells with negligible density
+                if (density[idx] < 0.01f) continue;
+
+                // Check if this is a shell cell (has at least one neighbor with significantly lower density)
+                bool isShell = false;
+
+                // Check 6-neighborhood (faces)
+                if (density[index(i+1, j, k)] < 0.01f ||
+                    density[index(i-1, j, k)] < 0.01f ||
+                    density[index(i, j+1, k)] < 0.01f ||
+                    density[index(i, j-1, k)] < 0.01f ||
+                    density[index(i, j, k+1)] < 0.01f ||
+                    density[index(i, j, k-1)] < 0.01f) {
+                    isShell = true;
+                }
+
+                if (isShell) {
+                    // This is a shell cell - boost its density for rendering
+                    shellDensity[idx] = density[idx] * 2.0f; // Boost opacity
+                }
+            }
+        }
+    }
+
+    // Store the shell density in a separate texture
+    // If you don't have m_shellDensityTexture defined yet, you'll need to add it
+    if (m_shellDensityTexture == 0) {
+        glGenTextures(1, &m_shellDensityTexture);
+    }
+
+    glBindTexture(GL_TEXTURE_3D, m_shellDensityTexture);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+    glTexImage3D(GL_TEXTURE_3D, 0, GL_R32F, size, size, size, 0, GL_RED, GL_FLOAT, shellDensity.data());
+    glBindTexture(GL_TEXTURE_3D, 0);
+}
 
 
 
@@ -399,6 +499,39 @@ void FluidCube::uploadColorFieldToGPU() {
     glBindTexture(GL_TEXTURE_3D, 0);
 }
 
+void FluidCube::uploadVelocityToGPU() {
+    if (m_velocityTexture == 0) {
+        glGenTextures(1, &m_velocityTexture);
+    }
+
+    glBindTexture(GL_TEXTURE_3D, m_velocityTexture);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_3D, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+
+    // Calculate velocity magnitude
+    std::vector<float> velocityMagnitude(size * size * size);
+
+    for (int k = 0; k < size; k++) {
+        for (int j = 0; j < size; j++) {
+            for (int i = 0; i < size; i++) {
+                int idx = index(i, j, k);
+                float vx = vX[idx];
+                float vy = vY[idx];
+                float vz = vZ[idx];
+
+                // Calculate magnitude
+                velocityMagnitude[idx] = sqrt(vx*vx + vy*vy + vz*vz);
+            }
+        }
+    }
+
+    glTexImage3D(GL_TEXTURE_3D, 0, GL_R32F, size, size, size, 0,
+                 GL_RED, GL_FLOAT, velocityMagnitude.data());
+    glBindTexture(GL_TEXTURE_3D, 0);
+}
 
 // Upload custom color field for shell rendering
 void FluidCube::uploadCustomColorToGPU(const std::vector<float>& customColors) {
@@ -441,9 +574,17 @@ void FluidCube::drawVolume(Shader* shader) {
     glBindTexture(GL_TEXTURE_3D, m_densityTexture);
     glActiveTexture(GL_TEXTURE1);
     glBindTexture(GL_TEXTURE_3D, m_colorTexture);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_3D, m_velocityTexture);
 
     shader->setUniform("densityTex", 0);
     shader->setUniform("colorTex", 1);
+    shader->setUniform("velocityTex", 2);
+
+    shader->setUniform("useVelocityColor", m_useVelocityColor);
+    shader->setUniform("velocityScale", m_velocityScale);
+    shader->setUniform("velocityBlend", m_velocityBlend);
+
     shader->setUniform("colorMapType", m_colorMapType);
     shader->setUniform("renderMode", m_renderMode);
     shader->setUniform("size", size);
@@ -461,40 +602,33 @@ void FluidCube::drawVolume(Shader* shader) {
 
 void FluidCube::drawShellOnly(Shader *shader) {
     // Create temporary arrays for shell information
-    std::vector<float> shellDensity(size * size * size, 0.0f);
-    std::vector<float> shellColors(size * size * size, 0.0f);
-
-    // Detect shell cells (cells that have density and at least one neighbor without density)
-    // Using precise threshold for better shell definition
-    for (int k = 1; k < size-1; k++) {
-        for (int j = 1; j < size-1; j++) {
-            for (int i = 1; i < size-1; i++) {
-                int idx = index(i, j, k);
-
-                // Skip cells with very low density
-                if (density[idx] < 0.01f) continue;
-
-                // Check if any of the six adjacent cells has low density
-                bool isShell = false;
-                if (density[index(i-1, j, k)] < 0.01f || density[index(i+1, j, k)] < 0.01f ||
-                    density[index(i, j-1, k)] < 0.01f || density[index(i, j+1, k)] < 0.01f ||
-                    density[index(i, j, k-1)] < 0.01f || density[index(i, j, k+1)] < 0.01f) {
-                    isShell = true;
-                }
-
-                // If it's a shell cell, enhance its density and preserve color
-                if (isShell) {
-                    // Use moderate density enhancement for clarity
-                    shellDensity[idx] = density[idx] * 3.5f;
-                    shellColors[idx] = static_cast<float>(fluidColors[idx]);
-                }
-            }
-        }
+    if (m_shellDensityTexture == 0) {
+        // Generate the shell texture if not already done
+        detectShell();
     }
 
-    // Upload this modified density field and color field to GPU
-    uploadCustomDensityToGPU(shellDensity);
-    uploadCustomColorToGPU(shellColors);
+    // Pass the shell texture to the shader
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_3D, m_shellDensityTexture);
+
+    // Also pass color texture
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_3D, m_colorTexture);
+
+    shader->setUniform("densityTex", 0);
+    shader->setUniform("colorTex", 1);
+    shader->setUniform("colorMapType", m_colorMapType);
+    shader->setUniform("renderMode", m_renderMode);
+    shader->setUniform("size", size);
+
+    // Pass current time for animation effects
+    static float timeValue = 0.0f;
+    timeValue += 0.016f; // Increment by roughly 1/60 second
+    shader->setUniform("time", timeValue);
+
+    // Draw the fullscreen quad
+    glBindVertexArray(m_fullscreen_vao);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
 }
 
 
@@ -515,6 +649,7 @@ void FluidCube::clearAllFluids() {
 
     // Update GPU textures
     uploadDensityToGPU();
+    uploadVelocityToGPU();
     uploadColorFieldToGPU();
 }
 
@@ -696,6 +831,13 @@ void FluidCube::toggleWireframe()
     m_wireframe = !m_wireframe;
 }
 
+void FluidCube::toggleShellRendering() {
+    m_renderMode = 1 - m_renderMode; // Toggle between 0 (volume) and 1 (shell)
+    // Force shell update if shell mode
+    if (m_renderMode == 1) {
+        detectShell();
+    }
+}
 
 void FluidCube::visualizeVelocity() {
     float maxVelocity = 0.0f;
@@ -876,6 +1018,8 @@ void FluidCube::offRenderingCheck() {
 
     std::string densityPath = "offline_data/densityFrames.bin";
     std::string colorPath   = "offline_data/colorFrames.bin";
+    std::string velocityPath = "offline_data/velocityFrames.bin";
+
     fs::create_directory("offline_data");
 
     if (fs::exists(densityPath) && fs::exists(colorPath)) {
@@ -883,6 +1027,7 @@ void FluidCube::offRenderingCheck() {
         // Load from file
         std::ifstream dFile(densityPath, std::ios::binary);
         std::ifstream cFile(colorPath, std::ios::binary);
+        std::ifstream vFile(velocityPath, std::ios::binary);
 
         int numFrames = 0;
         dFile.read(reinterpret_cast<char*>(&numFrames), sizeof(int));
@@ -890,10 +1035,13 @@ void FluidCube::offRenderingCheck() {
         for (int f = 0; f < numFrames; ++f) {
             std::vector<float> densityFrame(totalCells);
             std::vector<int> colorFrame(totalCells);
+            std::vector<float> velocityFrame(totalCells);
             dFile.read(reinterpret_cast<char*>(densityFrame.data()), totalCells * sizeof(float));
             cFile.read(reinterpret_cast<char*>(colorFrame.data()), totalCells * sizeof(int));
+            vFile.read(reinterpret_cast<char*>(velocityFrame.data()), totalCells * sizeof(float));
             densityFrames.push_back(std::move(densityFrame));
             colorFrames.push_back(std::move(colorFrame));
+            velocityFrames.push_back(std::move(velocityFrame));
         }
 
         Log("Loaded offline frames from disk.");
@@ -905,10 +1053,20 @@ void FluidCube::offRenderingCheck() {
             Log(i);
             densityFrames.push_back(density);
             colorFrames.push_back(fluidColors);
+            std::vector<float> velocityMagnitudes(totalCells);
+            for (int j = 0; j < totalCells; j++) {
+                float vx = vX[j];
+                float vy = vY[j];
+                float vz = vZ[j];
+                velocityMagnitudes[j] = sqrt(vx*vx + vy*vy + vz*vz);
+            }
+            velocityFrames.push_back(std::move(velocityMagnitudes));
+
         }
 
         std::ofstream dFile(densityPath, std::ios::binary);
         std::ofstream cFile(colorPath, std::ios::binary);
+        std::ofstream vFile(velocityPath, std::ios::binary);
 
         int numFrames = densityFrames.size();
         dFile.write(reinterpret_cast<const char*>(&numFrames), sizeof(int));
@@ -916,6 +1074,8 @@ void FluidCube::offRenderingCheck() {
         for (int f = 0; f < numFrames; ++f) {
             dFile.write(reinterpret_cast<const char*>(densityFrames[f].data()), totalCells * sizeof(float));
             cFile.write(reinterpret_cast<const char*>(colorFrames[f].data()), totalCells * sizeof(int));
+            vFile.write(reinterpret_cast<const char*>(velocityFrames[f].data()), totalCells * sizeof(float));
+
         }
 
         Log("Saved offline frames to disk.");

@@ -24,7 +24,7 @@ public:
 
     // Toggle the Wire Frame to see the cube
     void toggleWireframe();
-
+    void toggleShellRendering();
     // Update using a dt
     void update(float dt);
 
@@ -64,9 +64,17 @@ public:
     int getSize() const {return size;}
     std::vector<float>& getDensity() { return density; }
 
+    void detectShell();
+
     // For Offline Rendering
     void restartOfflineRendering();
-
+    void uploadVelocityToGPU();
+    void toggleVelocityColoring() { m_useVelocityColor = !m_useVelocityColor; }
+    void setVelocityScale(float scale) { m_velocityScale = scale; }
+    void setVelocityBlend(float blend) { m_velocityBlend = blend; }
+    bool isUsingVelocityColor() const { return m_useVelocityColor; }
+    float getVelocityScale() const { return m_velocityScale; }
+    float getVelocityBlend() const { return m_velocityBlend; }
 private:
     // Below are the units for OpenGL rendering
     GLuint m_vao;
@@ -74,6 +82,11 @@ private:
     GLuint m_ibo;
     GLuint m_densityTexture;
     GLuint m_colorTexture;  // New texture for color field
+    GLuint m_shellDensityTexture;
+    GLuint m_velocityTexture = 0;
+    bool m_useVelocityColor = true;
+    float m_velocityScale = 3.0f;  // Starting scale - adjust based on your simulation
+    float m_velocityBlend = 0.5f;  // 50% blend initially
     Eigen::Matrix4f m_modelMatrix;
     bool m_wireframe;
     // Plus the unit - voxel or the cell
@@ -103,11 +116,12 @@ private:
     vector<float> vZ0; // Previous z-direction velocity
     vector<float> vZ; // Current z-direction velocity
     vector<int> fluidColors; // Color map type for each cell
+    vector<float> velocity; // Velocity field for the fluid
 
     // Below are the main functions should be done in Stable Fluids
     int iter = 4; // This is the key parameter to solve stable formula (20 in the paper; 10 in the video; 4 in the website)
 
-    float m_vorticityStrength = 100.0f;  // Default vorticity strength
+    float m_vorticityStrength = 1000.0f;  // Default vorticity strength
 
     // Some getters here only to reduce the difficulty of extracting data
     int index(int x, int y, int z);
@@ -142,10 +156,12 @@ private:
     void propagateColors();
 
     void fountainGeneration();
+    void fountainGenerationTopDown();
 
     // Offline Rendering
     std::vector<std::vector<float>> densityFrames;
     std::vector<std::vector<int>> colorFrames;
+    std::vector<std::vector<float>> velocityFrames;
     void offRenderingCheck();
 };
 
