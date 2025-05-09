@@ -78,6 +78,16 @@ void GLWidget::initializeGL()
     m_intervalTimer.start(1000 / 60);
 }
 
+//void GLWidget::dumpFrame()
+//{
+//    static int frame = 0;                     // or a member variable
+//    QImage img = grabFramebuffer();           // <- RGBA8888 by default
+//    // Make sure the directory exists; Qt will create parent dirs for you
+//    const QString path = QStringLiteral("captures/frame_%1.png")
+//                             .arg(frame++, 6, 10, QLatin1Char('0'));
+//    img.save(path);                           // writes PNG
+//}
+
 void GLWidget::paintGL()
 {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -93,6 +103,10 @@ void GLWidget::paintGL()
     Eigen::Matrix4f invViewProj = (proj * view).inverse();
     m_shader->setUniform("invViewProj", invViewProj);
     m_sim.draw(m_shader);
+//    if (m_dumpFrames) {
+//        dumpFrame();
+//    }
+
     m_shader->unbind();
 
     glDisable(GL_BLEND);
@@ -311,7 +325,7 @@ void GLWidget::tick()
 {
     // Run at 60 FPS
     float accumulatedTime = 0.0f;
-    const float fixedDelta = 1.0f / 120.0f;
+    const float fixedDelta = 1.0f / m_sim.fluidCube.frameRate;
 
     float deltaSeconds = m_deltaTimeProvider.restart() / 1000.f;
     accumulatedTime += deltaSeconds;
@@ -321,7 +335,7 @@ void GLWidget::tick()
         accumulatedTime -= fixedDelta;
     }
 
-    // Auto Camera
+    //Auto Camera
     if (m_camera.getIsOrbiting()) {
         Eigen::Vector3f target = {0, 0,  0};
         Eigen::AngleAxisf rotation_y(M_PI/ 360, Eigen::Vector3f::UnitY());
@@ -329,14 +343,14 @@ void GLWidget::tick()
         m_camera.lookAt(m_camera.getPosition(), target);
     }
 
-    // // Move camera
-    // auto look = m_camera.getLook();
-    // look.y() = 0;
-    // look.normalize();
-    // Eigen::Vector3f perp(-look.z(), 0, look.x());
-    // Eigen::Vector3f moveVec = m_forward * look.normalized() + m_sideways * perp.normalized() + m_vertical * Eigen::Vector3f::UnitY();
-    // moveVec *= deltaSeconds;
-    // m_camera.move(moveVec);
+    //Move camera
+    auto look = m_camera.getLook();
+    look.y() = 0;
+    look.normalize();
+    Eigen::Vector3f perp(-look.z(), 0, look.x());
+    Eigen::Vector3f moveVec = m_forward * look.normalized() + m_sideways * perp.normalized() + m_vertical * Eigen::Vector3f::UnitY();
+    moveVec *= deltaSeconds;
+    m_camera.move(moveVec);
 
     // Flag this view for repainting (Qt will call paintGL() soon after)
     update();

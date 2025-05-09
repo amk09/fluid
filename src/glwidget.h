@@ -59,6 +59,8 @@ private:
     bool m_cameraControl = false;
     bool m_fluidInteract = false;
 
+//    void dumpFrame();
+//    bool m_dumpFrames = true;
 
 private slots:
 

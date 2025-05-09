@@ -78,6 +78,7 @@ public:
 
     void offRenderingCheckFbyF();
     void renderNextOfflineFrame();
+    float frameRate = 120.0f;
 private:
     // Below are the units for OpenGL rendering
     GLuint m_vao;
