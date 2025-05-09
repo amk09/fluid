@@ -10,6 +10,12 @@ An implementation of a 3D fluid simulator based on Jos Stam's [Stable Fluids](ht
 
 *Offline precomputed fluid simulation with default color.*
 
+
+https://github.com/user-attachments/assets/f8089f12-4efb-434c-b1ec-5d79d3cddaca
+
+*Offline precomputed fluid simulation with changing color.*
+
+
 ## Features
 
 - **3D Stable Fluid Solver:** Real-time fluid simulation using an unconditionally stable, semi-Lagrangian approach
