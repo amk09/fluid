@@ -111,7 +111,8 @@ Based on Jos Stam's "Stable Fluids" paper
 Implementation by **Unstable Fruits Team**: 
 [Jue Han](https://github.com/amk09),
 [TianXing Ji](https://github.com/TianxingJi), 
-[Xiaoxi Yang](https://github.com/yangxiaoxi65),[Akash Singirikonda](https://github.com/AkashSingirikonda)
+[Xiaoxi Yang](https://github.com/yangxiaoxi65),
+[Akash Singirikonda](https://github.com/AkashSingirikonda)
 
 Visualization using OpenGL and custom GLSL shaders
 
