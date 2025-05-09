@@ -75,6 +75,9 @@ public:
     bool isUsingVelocityColor() const { return m_useVelocityColor; }
     float getVelocityScale() const { return m_velocityScale; }
     float getVelocityBlend() const { return m_velocityBlend; }
+
+    void offRenderingCheckFbyF();
+    void renderNextOfflineFrame();
 private:
     // Below are the units for OpenGL rendering
     GLuint m_vao;

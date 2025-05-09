@@ -12,7 +12,7 @@ void Simulation::init()
 {
     // Initialize the fluid with much lower diffusion and viscosity parameters
     // This will make the fluid less likely to spread out horizontally
-    gridSize = 32;
+    gridSize = 64;
     obstacleX = gridSize / 2;
     obstacleY = 1;
     obstacleZ = gridSize / 2;
