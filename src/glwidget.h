@@ -58,7 +58,6 @@ private:
     // Variables to track interaction modes
     bool m_cameraControl = false;
     bool m_fluidInteract = false;
-
 //    void dumpFrame();
 //    bool m_dumpFrames = true;
 

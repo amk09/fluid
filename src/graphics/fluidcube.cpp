@@ -8,6 +8,9 @@
 #include <filesystem>  // C++17
 #include <fstream>
 #include <deque>
+#include <chrono>   // add once
+#include <fstream>  // for CSV
+
 namespace fs = std::filesystem;
 
 #define Log(x) std::cout << x << std::endl;
@@ -1160,6 +1163,13 @@ void FluidCube::renderNextOfflineFrame()
 
 void FluidCube::offRenderingCheckFbyF()
 {
+    using Clock = std::chrono::high_resolution_clock;
+    auto t0 = Clock::now();
+    std::ostringstream oss;
+    oss << "save_times_" << size << ".csv";
+    std::ofstream csv(oss.str(), std::ios::trunc);
+    csv << "frame,elapsed_ms\n";                       // header
+
     namespace fs = std::filesystem;
     constexpr int RING = 0;
 
@@ -1182,6 +1192,7 @@ void FluidCube::offRenderingCheckFbyF()
     std::deque<std::vector<float>> densityRing;
     std::deque<std::vector<int>>   colorRing;
     std::deque<std::vector<float>> velRing;
+
 
     for (int i = 0; i < totalFrames; ++i) {
         update(1.0f / frameRate);
@@ -1221,6 +1232,10 @@ void FluidCube::offRenderingCheckFbyF()
                 velRing.pop_front();
             }
         }
+        auto tNow = Clock::now();
+        const long elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(tNow - t0).count();
+        t0 = tNow;
+        csv << i << ',' << elapsedMs << '\n';
     }
 
     Log("Saved " + std::to_string(totalFrames) + " offline frames to disk.");
