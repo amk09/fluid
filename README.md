@@ -2,6 +2,22 @@
 
 An implementation of an interactive 3D fluid simulator based on Jos Stam's [Stable Fluids](https://pages.cs.wisc.edu/~chaol/data/cs777/stam-stable_fluids.pdf) method. The solver is suitable for visual effects involving smoke, gas, or any fluid-like motion. 
 
+## Features
+
+- **3D Stable Fluid Solver:** Real-time fluid simulation using an unconditionally stable, semi-Lagrangian approach
+- **Vorticity Confinement:** Enhanced swirling patterns and detailed flow features
+- **Solid Object Collisions:** Fluid interacts with solid obstacles (cubes, spheres) with proper flow dynamics
+- **Multiple Visualization Modes:**
+  - Volume ray marching for realistic fluid density rendering
+  - Voxel-based visualization
+  - Shell-only rendering for surface visualization
+- **Interactive Controls:** Real-time addition of density and velocity through mouse interaction
+- **Customizable Parameters:** Adjust viscosity, diffusion, iterations and more
+- **Efficient Implementation:** OpenMP parallelization for improved performance
+- **Color Mixture:** Different fluid colors can appear at the same time
+- **Obstacle Detection:** Obstacles can be placed freely in the domain, and the fluid automatically avoids diffusing into them.
+- **Higher Resolution Computation:** Offline precomputing feature for higher resolution, makes it up to 256 cubes
+
 ## Examples
 ![Fluid Simulation Demo](./example-meshes/example.gif)
 
@@ -18,22 +34,6 @@ An implementation of an interactive 3D fluid simulator based on Jos Stam's [Stab
 https://github.com/user-attachments/assets/f8089f12-4efb-434c-b1ec-5d79d3cddaca
 
 *Offline precomputed fluid simulation with changing color.*
-
-## Features
-
-- **3D Stable Fluid Solver:** Real-time fluid simulation using an unconditionally stable, semi-Lagrangian approach
-- **Vorticity Confinement:** Enhanced swirling patterns and detailed flow features
-- **Solid Object Collisions:** Fluid interacts with solid obstacles (cubes, spheres) with proper flow dynamics
-- **Multiple Visualization Modes:**
-  - Volume ray marching for realistic fluid density rendering
-  - Voxel-based visualization
-  - Shell-only rendering for surface visualization
-- **Interactive Controls:** Real-time addition of density and velocity through mouse interaction
-- **Customizable Parameters:** Adjust viscosity, diffusion, iterations and more
-- **Efficient Implementation:** OpenMP parallelization for improved performance
-- **Color Mixture:** Different fluid colors can appear at the same time
-- **Obstacle Detection:** Obstacles can be placed freely in the domain, and the fluid automatically avoids diffusing into them.
-- **Higher Resolution Computation:** Offline precomputing feature for higher resolution, makes it up to 256 cubes
 
 ## Requirements
 
