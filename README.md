@@ -1,20 +1,23 @@
 # 3D Stable Fluid and More!
 
-An implementation of a 3D fluid simulator based on Jos Stam's [Stable Fluids](https://pages.cs.wisc.edu/~chaol/data/cs777/stam-stable_fluids.pdf) method. The solver is suitable for visual effects involving smoke, gas, or any fluid-like motion.
+An implementation of an interactive 3D fluid simulator based on Jos Stam's [Stable Fluids](https://pages.cs.wisc.edu/~chaol/data/cs777/stam-stable_fluids.pdf) method. The solver is suitable for visual effects involving smoke, gas, or any fluid-like motion. 
 
+## Examples
 ![Fluid Simulation Demo](./example-meshes/example.gif)
 
 *Real-time fluid simulation with default color.*
+
+![UnstableFruits](https://github.com/user-attachments/assets/fa42f7d6-cd5a-4cd1-b5ff-77babd87683f)
+
+*Real-time fluid simulation with unstable fruits.*
 
 ![Fluid Simulation Demo](./example-meshes/olexample.gif)
 
 *Offline precomputed fluid simulation with default color.*
 
-
 https://github.com/user-attachments/assets/f8089f12-4efb-434c-b1ec-5d79d3cddaca
 
 *Offline precomputed fluid simulation with changing color.*
-
 
 ## Features
 
