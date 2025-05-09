@@ -109,9 +109,9 @@ There are some tried extensions but somehow cannot work out:
 Based on Jos Stam's "Stable Fluids" paper
 
 Implementation by **Unstable Fruits Team**: 
+[Xiaoxi Yang](https://github.com/yangxiaoxi65),
 [Jue Han](https://github.com/amk09),
 [TianXing Ji](https://github.com/TianxingJi), 
-[Xiaoxi Yang](https://github.com/yangxiaoxi65),
 [Akash Singirikonda](https://github.com/AkashSingirikonda)
 
 Visualization using OpenGL and custom GLSL shaders
