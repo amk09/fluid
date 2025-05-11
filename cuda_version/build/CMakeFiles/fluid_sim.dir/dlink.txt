@@ -1,0 +1,1 @@
+/local/projects/cuda12/cuda12.2.2/bin/nvcc -forward-unknown-to-host-compiler  --extended-lambda -Xcompiler=-fPIC -Wno-deprecated-gpu-targets -shared -dlink --options-file CMakeFiles/fluid_sim.dir/deviceObjects1 -o CMakeFiles/fluid_sim.dir/cmake_device_link.o --options-file CMakeFiles/fluid_sim.dir/deviceLinkLibs.rsp -L"/usr/lib/x86_64-linux-gnu" -L"/lib/x86_64-linux-gnu"
