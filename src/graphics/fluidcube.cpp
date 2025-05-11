@@ -19,10 +19,10 @@ namespace fs = std::filesystem;
 static bool offlineRendering = false; // Just change this
 static bool offlineFileLoaded = false;
 static bool startRenderingOnce = false;
-static bool offlineRenderingFF = true; // Just change this
+static bool offlineRenderingFF = false; // Just change this
 static bool offlineFileLoadedFF = false;
 static bool startRenderingOnceFF = false;
-const int totalFrames = 100;
+const int totalFrames = 1500;
 static int frameIndex = 0;
 std::string densityPath = "offline_data/densityFrames.bin";
 std::string colorPath   = "offline_data/colorFrames.bin";
@@ -407,6 +407,10 @@ void FluidCube::init(int size, float diffuse, float viscosity){
     uploadDensityToGPU();
     // Initialize color texture
     uploadColorFieldToGPU();
+
+    if (size > 32) {
+        offlineRendering = true;
+    }
 
     if(offlineRendering){
         // Offline Calculation
@@ -1163,12 +1167,12 @@ void FluidCube::renderNextOfflineFrame()
 
 void FluidCube::offRenderingCheckFbyF()
 {
-    using Clock = std::chrono::high_resolution_clock;
+    /*using Clock = std::chrono::high_resolution_clock;
     auto t0 = Clock::now();
     std::ostringstream oss;
     oss << "save_times_" << size << ".csv";
     std::ofstream csv(oss.str(), std::ios::trunc);
-    csv << "frame,elapsed_ms\n";                       // header
+    csv << "frame,elapsed_ms\n";         */              // header
 
     namespace fs = std::filesystem;
     constexpr int RING = 0;
@@ -1232,10 +1236,10 @@ void FluidCube::offRenderingCheckFbyF()
                 velRing.pop_front();
             }
         }
-        auto tNow = Clock::now();
-        const long elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(tNow - t0).count();
-        t0 = tNow;
-        csv << i << ',' << elapsedMs << '\n';
+//        auto tNow = Clock::now();
+//        const long elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(tNow - t0).count();
+//        t0 = tNow;
+//        csv << i << ',' << elapsedMs << '\n';
     }
 
     Log("Saved " + std::to_string(totalFrames) + " offline frames to disk.");
