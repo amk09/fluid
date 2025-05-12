@@ -19,7 +19,7 @@ An implementation of an interactive 3D fluid simulator based on Jos Stam's [Stab
 - **Higher Resolution Computation:** Offline precomputing feature for higher resolution, makes it up to 256 cubes. We have two methods of offline rendering, one adds all grid values for each timestep into a single binary and loads that into ram before rendering. The other stores these values to separate files after each update, after which each file is rendered from in real time.
 
 ## Examples
-![Fluid Simulation Demo](./example-meshes/example.gif)
+![Fluid Simulation Demo](./example/example.gif)
 
 *Real-time fluid simulation with default color.*
 
@@ -27,7 +27,7 @@ An implementation of an interactive 3D fluid simulator based on Jos Stam's [Stab
 
 *Real-time fluid simulation with unstable fruits.*
 
-![Fluid Simulation Demo](./example-meshes/olexample.gif)
+![Fluid Simulation Demo](./example/olexample.gif)
 
 *Offline precomputed fluid simulation with default color.*
 
@@ -167,7 +167,11 @@ Implementation by **Unstable Fruits Team**:
 [TianXing Ji](https://github.com/TianxingJi), 
 [Akash Singirikonda](https://github.com/AkashSingirikonda)
 
+Presentation slides for CSCI2240 can be viewed [here](/example/Final_Unstable_Fruits.pptx)
+
 Visualization using OpenGL and custom GLSL shaders
+
+
 
 
 
