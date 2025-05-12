@@ -16,7 +16,7 @@ An implementation of an interactive 3D fluid simulator based on Jos Stam's [Stab
 - **Efficient Implementation:** OpenMP parallelization for improved performance
 - **Color Mixture:** Different fluid colors can appear at the same time
 - **Obstacle Detection:** Obstacles can be placed freely in the domain, and the fluid automatically avoids diffusing into them.
-- **Higher Resolution Computation:** Offline precomputing feature for higher resolution, makes it up to 256 cubes
+- **Higher Resolution Computation:** Offline precomputing feature for higher resolution, makes it up to 256 cubes. We have two methods of offline rendering, one adds all grid values for each timestep into a single binary and loads that into ram before rendering. The other stores these values to separate files after each update, after which each file is rendered from in real time.
 
 ## Examples
 ![Fluid Simulation Demo](./example-meshes/example.gif)
@@ -140,7 +140,7 @@ python3 visualizer.py
 ```
 A sequence of cross sections in X-Y, Y-Z, and Z-X planes will be generated in the ```visualizer/plots``` folder.
 
-To viualize from binaries using our renderer, place the density, velocity magnitude, and color files in the build/offline_data folder, and set the ```offlineFileLoadedFF``` value at the top of ```fluidcube.cpp``` to true. This will generate a visualization similar to the one above.
+To visualize from binaries using our renderer, place the density, velocity magnitude, and color files in the build/offline_data folder, and set the ```offlineFileLoadedFF``` value at the top of ```fluidcube.cpp``` to true. This will generate a visualization similar to the one above.
 
 
 The only methodological difference between this and amk09/fluid is that instead of using a Gauss-Seidel solver, we use a Jacobi Kernel. This is because the Gauss-Seidel solver typically writes from data it reads to, which a Jacobi kernel does not. The Jacobi kernel however converges slower and is run for 10 solver step rather than the 4 that's used in our CPU implementation. 
