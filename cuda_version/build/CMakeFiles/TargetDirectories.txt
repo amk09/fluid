@@ -1,0 +1,3 @@
+/home/asingir1/cs0320/fluidCuda/build/CMakeFiles/fluid_sim.dir
+/home/asingir1/cs0320/fluidCuda/build/CMakeFiles/edit_cache.dir
+/home/asingir1/cs0320/fluidCuda/build/CMakeFiles/rebuild_cache.dir

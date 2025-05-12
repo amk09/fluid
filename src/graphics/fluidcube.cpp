@@ -7,6 +7,9 @@
 #include <iostream>
 #include <filesystem>  // C++17
 #include <fstream>
+#include <deque>
+#include <chrono>   // add once
+#include <fstream>  // for CSV
 
 namespace fs = std::filesystem;
 
@@ -16,6 +19,9 @@ namespace fs = std::filesystem;
 static bool offlineRendering = false; // Just change this
 static bool offlineFileLoaded = false;
 static bool startRenderingOnce = false;
+static bool offlineRenderingFF = false; // Just change this
+static bool offlineFileLoadedFF = false;
+static bool startRenderingOnceFF = false;
 const int totalFrames = 1500;
 static int frameIndex = 0;
 std::string densityPath = "offline_data/densityFrames.bin";
@@ -106,6 +112,12 @@ void FluidCube::draw(Shader *shader)
 
 void FluidCube::update(float dt)
 {
+    if ((offlineRenderingFF && offlineFileLoadedFF) || startRenderingOnceFF) {
+        // Load Density and Color for next stage (just move on to just one place for each update call, start from zero. and stop in the end.)
+        renderNextOfflineFrame();
+        return;
+    }
+
     if ((offlineRendering && offlineFileLoaded) || startRenderingOnce) {
         // Load Density and Color for next stage (just move on to just one place for each update call, start from zero. and stop in the end.)
         if (frameIndex < densityFrames.size()) {
@@ -369,8 +381,6 @@ void FluidCube::init(int size, float diffuse, float viscosity){
     this->visc= viscosity;
     this->totalCells = size*size*size;
 
-    offlineRendering = size > 32;
-
     // We resize the density and velocity vectors with 0.0f value
     density0.resize(totalCells, 0.0f);
     density.resize(totalCells, 0.0f);
@@ -398,9 +408,18 @@ void FluidCube::init(int size, float diffuse, float viscosity){
     // Initialize color texture
     uploadColorFieldToGPU();
 
+    if (size > 32) {
+        offlineRendering = true;
+    }
+
     if(offlineRendering){
         // Offline Calculation
         offRenderingCheck();
+        return;
+    }
+
+    if (offlineRenderingFF) {
+        offRenderingCheckFbyF();
     }
 }
 
@@ -1049,7 +1068,7 @@ void FluidCube::offRenderingCheck() {
         offlineFileLoaded = false;
         // Run simulation and save
         for (int i = 0; i < totalFrames; ++i) {
-            update(0.00833f); // 120 FPS
+            update(1/frameRate);
             Log(i);
             densityFrames.push_back(density);
             colorFrames.push_back(fluidColors);
@@ -1082,6 +1101,153 @@ void FluidCube::offRenderingCheck() {
         startRenderingOnce = true;
     }
 }
+
+void FluidCube::renderNextOfflineFrame()
+{
+    frameIndex = frameIndex % totalFrames;
+    if (!offlineRenderingFF) return;
+
+    auto makePath = [](const std::string& prefix, int idx) {
+        std::ostringstream oss;
+        oss << "offline_data/" << prefix << "_" << std::setw(4) << std::setfill('0') << idx << ".bin";
+        return oss.str();
+    };
+
+    const std::string dPath = makePath("density",  frameIndex);
+    const std::string cPath = makePath("color",    frameIndex);
+    const std::string vPath = makePath("velocity", frameIndex);
+
+    if (!fs::exists(dPath)) return;
+
+
+    std::vector<float> scratchDensity(totalCells);
+    std::vector<int>   scratchColor  (totalCells);
+    std::vector<float> scratchVelMag (totalCells);
+
+    {
+        std::ifstream f(dPath, std::ios::binary);
+        f.read(reinterpret_cast<char*>(scratchDensity.data()),
+               totalCells * sizeof(float));
+    }
+    {
+        std::ifstream f(cPath, std::ios::binary);
+        f.read(reinterpret_cast<char*>(scratchColor.data()),
+               totalCells * sizeof(int));
+    }
+    {
+        std::ifstream f(vPath, std::ios::binary);
+        f.read(reinterpret_cast<char*>(scratchVelMag.data()),
+               totalCells * sizeof(float));
+    }
+
+    // ------------ upload ------------
+    density      = scratchDensity;
+    fluidColors  = scratchColor;
+    velocity     = scratchVelMag;
+    uploadDensityToGPU();
+    uploadColorFieldToGPU();
+
+    if (m_velocityTexture == 0)
+        glGenTextures(1, &m_velocityTexture);
+
+    setupTextureParameters(m_velocityTexture);
+    glTexImage3D(
+        GL_TEXTURE_3D, 0, GL_R32F,
+        size, size, size, 0, GL_RED, GL_FLOAT,
+        velocity.data()
+        );
+
+    if (m_renderMode == 1) {
+        detectShell();
+    }
+
+    cout << "Rendered Fram: " << frameIndex;
+    frameIndex++;
+}
+
+void FluidCube::offRenderingCheckFbyF()
+{
+    /*using Clock = std::chrono::high_resolution_clock;
+    auto t0 = Clock::now();
+    std::ostringstream oss;
+    oss << "save_times_" << size << ".csv";
+    std::ofstream csv(oss.str(), std::ios::trunc);
+    csv << "frame,elapsed_ms\n";         */              // header
+
+    namespace fs = std::filesystem;
+    constexpr int RING = 0;
+
+    auto makePath = [](const char* prefix, int idx) {
+        std::ostringstream s;
+        s << "offline_data/" << prefix << '_'
+          << std::setw(4) << std::setfill('0') << idx << ".bin";
+        return s.str();
+    };
+
+    fs::create_directory("offline_data");
+    if (fs::exists(makePath("density", 0))) {
+        offlineFileLoadedFF = true;
+        startRenderingOnceFF = true;
+        return;
+    }
+
+    offlineFileLoadedFF = false;
+
+    std::deque<std::vector<float>> densityRing;
+    std::deque<std::vector<int>>   colorRing;
+    std::deque<std::vector<float>> velRing;
+
+
+    for (int i = 0; i < totalFrames; ++i) {
+        update(1.0f / frameRate);
+        Log("Sim frame " + std::to_string(i));
+
+        {
+            std::ofstream f(makePath("density", i), std::ios::binary);
+            f.write(reinterpret_cast<const char*>(density.data()),
+                    totalCells * sizeof(float));
+        }
+        {
+            std::ofstream f(makePath("color", i), std::ios::binary);
+            f.write(reinterpret_cast<const char*>(fluidColors.data()),
+                    totalCells * sizeof(int));
+        }
+
+        // Scratch for velocity Magnitude
+        std::vector<float> velMag(totalCells);
+        for (int j = 0; j < totalCells; ++j) {
+            float vx = vX[j], vy = vY[j], vz = vZ[j];
+            velMag[j] = std::sqrt(vx*vx + vy*vy + vz*vz);
+        }
+        {
+            std::ofstream f(makePath("velocity", i), std::ios::binary);
+            f.write(reinterpret_cast<const char*>(velMag.data()),
+                    totalCells * sizeof(float));
+        }
+
+        if constexpr (RING > 0) {
+            densityRing.push_back(std::move(velMag));
+            colorRing.push_back({});
+            velRing.push_back({});
+
+            if (densityRing.size() > RING) {
+                densityRing.pop_front();
+                colorRing.pop_front();
+                velRing.pop_front();
+            }
+        }
+//        auto tNow = Clock::now();
+//        const long elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(tNow - t0).count();
+//        t0 = tNow;
+//        csv << i << ',' << elapsedMs << '\n';
+    }
+
+    Log("Saved " + std::to_string(totalFrames) + " offline frames to disk.");
+    startRenderingOnceFF = true;                 // start playback phase
+}
+
+
+
 
 void FluidCube::restartOfflineRendering(){
     frameIndex = 0;

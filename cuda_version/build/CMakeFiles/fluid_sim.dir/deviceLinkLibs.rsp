@@ -1,0 +1,1 @@
+  -L"/local/projects/cuda12/cuda12.2.2/targets/x86_64-linux/lib/stubs"  -L"/local/projects/cuda12/cuda12.2.2/targets/x86_64-linux/lib"  -lcuda -lcudart -lcudadevrt -lcudart_static -lrt -lpthread -ldl 

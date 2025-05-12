@@ -1,0 +1,1 @@
+/bin/c++ CMakeFiles/fluid_sim.dir/src/main.cpp.o CMakeFiles/fluid_sim.dir/src/fluid_simulation.cu.o CMakeFiles/fluid_sim.dir/cmake_device_link.o -o fluid_sim   -L/local/projects/cuda12/cuda12.2.2/targets/x86_64-linux/lib/stubs  -L/local/projects/cuda12/cuda12.2.2/targets/x86_64-linux/lib  -lcuda -lcudart -lcudadevrt -lcudart_static -lrt -lpthread -ldl 
