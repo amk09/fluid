@@ -167,7 +167,7 @@ Implementation by **Unstable Fruits Team**:
 [TianXing Ji](https://github.com/TianxingJi), 
 [Akash Singirikonda](https://github.com/AkashSingirikonda)
 
-Presentation slides for CSCI2240 can be viewed [here](/example/Final_Unstable_Fruits.pptx)
+Presentation slides for CSCI2240 can be viewed [here](https://docs.google.com/presentation/d/1OlpTKjx3Wum2RO7EvBJrGvtHN2jylxnq/edit?usp=drive_link&ouid=116842711033816481659&rtpof=true&sd=true)
 
 Visualization using OpenGL and custom GLSL shaders
 
