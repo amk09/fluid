@@ -87,8 +87,8 @@ make
 ## Parameter Tuning
 You can modify these parameters in the GUI or directly in the code:
 
- - Diffusion: Controls how quickly the density spreads (0.0001 - 0.01)
- - Viscosity: Controls the "thickness" of the fluid (0.0001 - 0.01)
+ - Diffusion: Controls how quickly the density spreads (0 - 0.0001)
+ - Viscosity: Controls the "thickness" of the fluid (0 - 0.0001)
  - Vorticity Strength: Controls the intensity of swirling motion (0.0 - 5.0)
  - Iterations: Controls accuracy of the simulation (5 - 40)
 
